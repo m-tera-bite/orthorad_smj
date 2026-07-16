@@ -1,6 +1,7 @@
 import { Fragment } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { asset } from "@/lib/asset";
 
 const navLinks = [
   { to: "/servicios", label: "Servicios" },
@@ -42,13 +43,13 @@ export default function Navbar() {
           <div className="flex items-center gap-3">
             <Link
               to="/portal-cliente"
-              className="border border-alternative text-alternative text-xs font-medium px-[10px] py-[5px] rounded-[5px] hover:bg-alternative hover:text-primary transition-colors"
+              className="bg-secondary text-background-alt text-xs font-medium px-[10px] py-[5px] rounded-[5px] hover:bg-primary transition-colors"
             >
               Resultados Online
             </Link>
             <Link
               to="/agenda"
-              className="bg-secondary text-white text-xs font-medium px-[10px] py-[5px] rounded-[5px] hover:bg-alternative hover:text-primary transition-colors"
+              className="bg-background text-primary text-xs font-medium px-[10px] py-[5px] rounded-[5px] hover:bg-alternative transition-colors"
             >
               Agendar Cita
             </Link>
@@ -63,7 +64,7 @@ export default function Navbar() {
       >
         {/* Logo | Figma: 220×93 */}
         <Link to="/" className="flex-shrink-0">
-          <img src="/images/logo.png" alt="OrthoRad" style={{ height: "93px", width: "auto" }} />
+          <img src={asset("images/logo.png")} alt="OrthoRad" style={{ height: "93px", width: "auto" }} />
         </Link>
 
         {/* Links Container | Figma: 527×49, gap=89 between items, with | separators */}
@@ -89,37 +90,20 @@ export default function Navbar() {
           ))}
         </ul>
 
-        {/* Right CTA buttons (shared with contact bar buttons at top — desktop shows both) */}
-        <div className="hidden md:flex items-center gap-3 font-quicksand text-sm">
-          {user ? (
-            <>
-              <Link to="/portal-cliente" className="text-text hover:text-secondary transition-colors">
-                Mi Portal
-              </Link>
-              <button
-                onClick={logout}
-                className="bg-primary text-white px-4 py-2 rounded-[5px] hover:bg-secondary transition-colors text-sm font-medium"
-              >
-                Salir
-              </button>
-            </>
-          ) : (
-            <>
-              <Link
-                to="/portal-cliente"
-                className="border border-primary text-primary px-[10px] py-[10px] rounded-[5px] hover:bg-primary hover:text-white transition-colors text-sm font-medium"
-              >
-                Resultados Online
-              </Link>
-              <Link
-                to="/agenda"
-                className="bg-secondary text-white px-[10px] py-[10px] rounded-[5px] hover:bg-primary transition-colors text-sm font-medium"
-              >
-                Agendar Cita
-              </Link>
-            </>
-          )}
-        </div>
+        {/* Account controls — guest CTAs live in the contact bar above, not duplicated here */}
+        {user && (
+          <div className="hidden md:flex items-center gap-3 font-quicksand text-sm">
+            <Link to="/portal-cliente" className="text-text hover:text-secondary transition-colors">
+              Mi Portal
+            </Link>
+            <button
+              onClick={logout}
+              className="bg-primary text-white px-4 py-2 rounded-[5px] hover:bg-secondary transition-colors text-sm font-medium"
+            >
+              Salir
+            </button>
+          </div>
+        )}
       </nav>
     </header>
   );

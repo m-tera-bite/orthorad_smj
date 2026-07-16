@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { asset } from "@/lib/asset";
 
 type HoverZone = "left" | "right" | "bottom" | null;
 
@@ -13,10 +14,10 @@ const ZONES: { key: NonNullable<HoverZone>; cx: number; cy: number; r: number }[
 ];
 
 const SRC: Record<NonNullable<HoverZone> | "default", string> = {
-  default: "/images/venn-default.png",
-  left:    "/images/venn-hover-left.png",
-  right:   "/images/venn-hover-right.png",
-  bottom:  "/images/venn-hover-bottom.png",
+  default: asset("images/venn-default.png"),
+  left:    asset("images/venn-hover-left.png"),
+  right:   asset("images/venn-hover-right.png"),
+  bottom:  asset("images/venn-hover-bottom.png"),
 };
 
 export default function VennDiagram() {
@@ -31,7 +32,7 @@ export default function VennDiagram() {
           src={SRC[key]}
           alt={key === "default" ? "Tres pilares de OrthoRad" : ""}
           aria-hidden={key !== "default"}
-          className="absolute inset-0 w-full h-full object-contain transition-opacity duration-200"
+          className="absolute inset-0 w-full h-full object-contain transition-opacity duration-1000"
           style={{ opacity: (hovered ?? "default") === key ? 1 : 0 }}
           draggable={false}
         />

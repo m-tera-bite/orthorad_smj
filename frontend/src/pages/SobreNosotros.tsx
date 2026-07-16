@@ -1,17 +1,18 @@
 import { Link } from "react-router-dom";
+import { asset } from "@/lib/asset";
 
 const team = [
   {
     name: "Carlos Méndez",
     role: "Director Médico · Radiólogo Dental",
     bio: "Especialista en radiología oral y maxilofacial con más de 12 años de experiencia. Egresado de la Universidad de San Carlos de Guatemala con posgrado en diagnóstico radiológico.",
-    image: "/images/doctor-1.png",
+    image: asset("images/doctor-1.png"),
   },
   {
     name: "Carlos Méndez",
     role: "Director Médico · Radiólogo Dental",
     bio: "Especialista en radiología oral y maxilofacial con más de 12 años de experiencia. Egresado de la Universidad de San Carlos de Guatemala con posgrado en diagnóstico radiológico.",
-    image: "/images/doctor-2.png",
+    image: asset("images/doctor-2.png"),
   },
 ];
 
@@ -45,7 +46,7 @@ export default function SobreNosotros() {
             </div>
             <div className="rounded-2xl overflow-hidden h-[440px]">
               <img
-                src="/images/clinic-photo.png"
+                src={asset("images/clinic-photo.png")}
                 alt="Clínica OrthoRad"
                 className="w-full h-full object-cover"
               />

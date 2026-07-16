@@ -1,20 +1,67 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import VennDiagram from "../components/VennDiagram";
+import { asset } from "@/lib/asset";
+import { services } from "@/data/services";
 
-const services = [
-  { index: "01", name: "Tomografía Dental 3D", duration: "10-20 min" },
-  { index: "02", name: "Cefalometría Digital", duration: "10-20 min" },
-  { index: "03", name: "Radiografía Panorámica", duration: "10-20 min" },
-  { index: "04", name: "Radiografía Periapical", duration: "10-20 min" },
-  { index: "05", name: "Radiografías Bite Wing", duration: "10-20 min" },
-];
+// Figma: ON_CLICK → SMART_ANIMATE, 300ms, ease-in-out, collapsed 93px → expanded 189px.
+// Only one row is expanded at a time — opening a new one collapses the
+// previous one in the same transition, both driven by the shared state below.
+function ServiceRow({
+  index,
+  name,
+  duration,
+  description,
+  open,
+  onToggle,
+}: {
+  index: string;
+  name: string;
+  duration: string;
+  description: string;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div className="border-b border-divider">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className="flex items-center justify-between w-full text-left group py-[38px] px-10"
+      >
+        <div className="flex items-center" style={{ gap: "129px" }}>
+          <span className="font-montserrat text-alternative font-semibold text-xs w-6 flex-shrink-0">
+            {index}
+          </span>
+          <span className="font-montserrat font-medium text-primary text-sm group-hover:text-secondary transition-colors">
+            {name}
+          </span>
+        </div>
+        <span className="text-xs text-text font-quicksand bg-background px-3 py-1 rounded-full border border-divider flex-shrink-0">
+          {duration}
+        </span>
+      </button>
+      <div
+        className="grid transition-[grid-template-rows] duration-300 ease-in-out"
+        style={{ gridTemplateRows: open ? "1fr" : "0fr" }}
+      >
+        <div className="overflow-hidden">
+          <p className="text-text font-inter text-sm leading-[1.6] px-10 pb-[38px]">
+            {description}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const steps = [
   {
     number: "01",
     title: "Agenda tu cita",
     description:
-      "Elige el especialista, la fecha y el horario que más te convenga desde nuestra app o sitio web. Recibe confirmación inmediata.",
+      "Elige el especialista, la fecha y el horario que más te convenga desde nuestro sitio web. Recibe confirmación inmediata.",
   },
   {
     number: "02",
@@ -40,12 +87,14 @@ const reviewText =
   '"Lo que más valoro es la continuidad del cuidado. Mi médico recuerda mi historial completo en cada visita y me llama para verificar cómo estoy. Nunca había sentido ese nivel de compromiso en otro centro médico."';
 
 export default function Home() {
+  const [openService, setOpenService] = useState<string | null>(null);
+
   return (
     <>
       {/* Hero — Mensaje Principal | Figma: 1440×809, pad=120 all sides */}
       <section
         className="relative flex items-center bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: "url('/images/hero-bg.png')", minHeight: "809px" }}
+        style={{ backgroundImage: `url('${asset("images/hero-bg.png")}')`, minHeight: "809px" }}
       >
         <div className="relative z-10 max-w-[1200px] mx-auto px-6 w-full py-[120px]">
           <div className="max-w-[573px]">
@@ -142,33 +191,24 @@ export default function Home() {
             {/* Image: 600×570 */}
             <div className="overflow-hidden rounded-l-xl" style={{ width: "600px", minHeight: "570px", padding: "10px" }}>
               <img
-                src="/images/services-img.png"
+                src={asset("images/services-img.png")}
                 alt="Radiografía dental"
                 className="w-full h-full object-cover rounded-xl"
                 style={{ height: "550px" }}
               />
             </div>
 
-            {/* Service list: 600×570, each item 600×93 pad 38/40 */}
+            {/* Service list: 600×570, each item 600×93 collapsed / 189 expanded */}
             <div style={{ width: "600px" }}>
-              {services.map(({ index, name, duration }) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between border-b border-divider group"
-                  style={{ height: "93px", paddingTop: "38px", paddingBottom: "38px", paddingLeft: "40px", paddingRight: "40px" }}
-                >
-                  <div className="flex items-center" style={{ gap: "129px" }}>
-                    <span className="font-montserrat text-alternative font-semibold text-xs w-6 flex-shrink-0">
-                      {index}
-                    </span>
-                    <span className="font-montserrat font-medium text-primary text-sm group-hover:text-secondary transition-colors">
-                      {name}
-                    </span>
-                  </div>
-                  <span className="text-xs text-text font-quicksand bg-background px-3 py-1 rounded-full border border-divider flex-shrink-0">
-                    {duration}
-                  </span>
-                </div>
+              {services.map((service) => (
+                <ServiceRow
+                  key={service.index}
+                  {...service}
+                  open={openService === service.index}
+                  onToggle={() =>
+                    setOpenService((prev) => (prev === service.index ? null : service.index))
+                  }
+                />
               ))}
               <div className="pt-8 px-10">
                 <Link
@@ -210,7 +250,7 @@ export default function Home() {
             style={{ borderRadius: "10px", maxWidth: "1105px", height: "596px" }}
           >
             <img
-              src="/images/technology-img.png"
+              src={asset("images/technology-img.png")}
               alt="Tecnología radiológica"
               className="w-full h-full object-cover"
             />

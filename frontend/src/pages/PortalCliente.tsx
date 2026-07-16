@@ -1,5 +1,6 @@
 import { useState, FormEvent } from "react";
 import { Link } from "react-router-dom";
+import { asset } from "@/lib/asset";
 
 export default function PortalCliente() {
   const [dob, setDob] = useState("");
@@ -38,7 +39,7 @@ export default function PortalCliente() {
         <div className="w-full max-w-md bg-white border border-divider rounded-2xl overflow-hidden shadow-sm">
           {/* Top — logo + heading */}
           <div className="px-8 pt-8 pb-6 text-center">
-            <img src="/images/logo.png" alt="OrthoRad" className="h-14 w-auto mx-auto mb-5" />
+            <img src={asset("images/logo.png")} alt="OrthoRad" className="h-14 w-auto mx-auto mb-5" />
             <h2 className="font-montserrat font-bold text-primary text-xl mb-1">
               Bienvenido a la Plataforma
             </h2>

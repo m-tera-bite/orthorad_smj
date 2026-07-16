@@ -1,64 +1,107 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { asset } from "@/lib/asset";
+import { services as serviceInfo } from "@/data/services";
 
-const services = [
+// Bullets: draft examples of where each study applies, pending real copy
+// from OrthoRad. Review before launch.
+//
+// Images: sourced from Wikimedia Commons under CC-BY / CC-BY-SA — these
+// licenses require visible credit, see the "Créditos de imágenes" note
+// rendered near the bottom of this page. Swap for OrthoRad's own patient
+// X-rays when available (no credit needed for those).
+const serviceExtras: Record<
+  string,
   {
-    index: "Servicio 01",
-    name: "Radiografía Panorámica",
-    description:
-      "Vista completa de ambas arcadas, articulaciones y senos maxilares en una sola imagen. El punto de partida de toda evaluación dental completa.",
+    bullets: string[];
+    image: string;
+    imageRight: boolean;
+    credit: { author: string; license: string; url: string };
+  }
+> = {
+  "Tomografía Dental 3D": {
     bullets: [
-      "Planificación de implantes",
-      "Diagnóstico de nervios y conductos",
-      "Detección de patologías óseas",
-      "Planificación quirúrgica",
+      "Planificación precisa de implantes dentales",
+      "Evaluación de terceros molares antes de extracción",
+      "Estudio de la articulación temporomandibular (ATM)",
+      "Ubicación exacta de nervios antes de cirugía",
     ],
-    image: "/images/service-img-a.png",
+    image: asset("images/cbct-tomografia-3d.jpg"),
     imageRight: false,
+    credit: {
+      author: "Panda 51",
+      license: "CC BY-SA 4.0",
+      url: "https://commons.wikimedia.org/wiki/File:CBCT_image_02.png",
+    },
   },
-  {
-    index: "Servicio 02",
-    name: "Tomografía Dental 3D",
-    description:
-      "Vista completa de ambas arcadas, articulaciones y senos maxilares en una sola imagen. El punto de partida de toda evaluación dental completa.",
+  "Cefalometría Digital": {
     bullets: [
-      "Planificación de implantes",
-      "Diagnóstico de nervios y conductos",
-      "Detección de patologías óseas",
-      "Planificación quirúrgica",
+      "Diagnóstico y seguimiento de tratamientos de ortodoncia",
+      "Análisis del crecimiento óseo en pacientes pediátricos",
+      "Planificación de cirugía ortognática",
+      "Evaluación de la vía aérea superior",
     ],
-    image: "/images/service-img-b.png",
+    image: asset("images/cefalometria-digital.jpg"),
     imageRight: true,
+    credit: {
+      author: "Segelnistcool",
+      license: "CC BY-SA 3.0",
+      url: "https://commons.wikimedia.org/wiki/File:Fernr%C3%B6ntgenseitenbild.jpg",
+    },
   },
-  {
-    index: "Servicio 03",
-    name: "Cefalometría Digital",
-    description:
-      "Vista completa de ambas arcadas, articulaciones y senos maxilares en una sola imagen. El punto de partida de toda evaluación dental completa.",
+  "Radiografía Panorámica": {
     bullets: [
-      "Planificación de implantes",
-      "Diagnóstico de nervios y conductos",
-      "Detección de patologías óseas",
-      "Planificación quirúrgica",
+      "Revisión general antes de un tratamiento dental",
+      "Detección de muelas del juicio impactadas",
+      "Evaluación de pérdida ósea por enfermedad periodontal",
+      "Chequeo previo a la colocación de brackets",
     ],
-    image: "/images/service-img-a.png",
+    image: asset("images/radiografia-panoramica.jpg"),
     imageRight: false,
+    credit: {
+      author: "Coronation Dental Specialty Group",
+      license: "CC BY 3.0",
+      url: "https://commons.wikimedia.org/wiki/File:Basic_panoramic_radiograph.jpg",
+    },
   },
-  {
-    index: "Servicio 04",
-    name: "Radiografía Periapical",
-    description:
-      "Vista completa de ambas arcadas, articulaciones y senos maxilares en una sola imagen. El punto de partida de toda evaluación dental completa.",
+  "Radiografía Periapical": {
     bullets: [
-      "Planificación de implantes",
-      "Diagnóstico de nervios y conductos",
-      "Detección de patologías óseas",
-      "Planificación quirúrgica",
+      "Diagnóstico de caries profundas y abscesos",
+      "Evaluación antes y después de un tratamiento de conducto",
+      "Revisión de la raíz antes de una extracción",
+      "Seguimiento de fracturas dentales",
     ],
-    image: "/images/service-img-b.png",
+    image: asset("images/radiografia-periapical.jpg"),
     imageRight: true,
+    credit: {
+      author: "Bin im Garten",
+      license: "CC BY-SA 3.0",
+      url: "https://commons.wikimedia.org/wiki/File:Dental_X-ray_2012_PD_03.JPG",
+    },
   },
-];
+  "Radiografías Bite Wing": {
+    bullets: [
+      "Detección temprana de caries entre los dientes",
+      "Chequeos dentales de rutina cada 6-12 meses",
+      "Evaluación del ajuste de coronas y obturaciones",
+      "Monitoreo del nivel de hueso alrededor de los dientes",
+    ],
+    image: asset("images/radiografia-bitewing.jpg"),
+    imageRight: false,
+    credit: {
+      author: "Dr. Jeffrey Cross, DDS",
+      license: "CC BY-SA 3.0",
+      url: "https://commons.wikimedia.org/wiki/File:ZELLFAZE_MN01_MP08_010.JPG",
+    },
+  },
+};
+
+const services = serviceInfo.map((s, i) => ({
+  index: `Servicio ${String(i + 1).padStart(2, "0")}`,
+  name: s.name,
+  description: s.description,
+  ...serviceExtras[s.name],
+}));
 
 const faqs = [
   { question: "¿Necesito Orden Médica?", answer: "No, en OrthoRad puedes agendar tu estudio directamente sin necesitar una orden médica previa. Sin embargo, si tu médico te la proporcionó, traerla ayuda a orientar mejor el diagnóstico." },
@@ -91,7 +134,7 @@ export default function Servicios() {
       {/* Hero */}
       <section
         className="relative min-h-[50vh] flex items-center bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: "url('/images/servicios-hero.png')" }}
+        style={{ backgroundImage: `url('${asset("images/servicios-hero.jpg")}')` }}
       >
         <div className="absolute inset-0 bg-primary/60" />
         <div className="relative z-10 max-w-7xl mx-auto px-10 py-20">
@@ -156,6 +199,27 @@ export default function Servicios() {
           </div>
         </section>
       ))}
+
+      {/* Image credits — required by the CC BY / CC BY-SA licenses above */}
+      <div className="max-w-7xl mx-auto px-6 py-6">
+        <p className="text-text/60 text-xs font-inter leading-relaxed">
+          Créditos de imágenes:{" "}
+          {services.map(({ name, credit }, i) => (
+            <span key={name}>
+              {i > 0 && " · "}
+              <a
+                href={credit.url}
+                target="_blank"
+                rel="noopener noreferrer license"
+                className="underline hover:text-secondary"
+              >
+                {name}
+              </a>{" "}
+              — {credit.author} ({credit.license})
+            </span>
+          ))}
+        </p>
+      </div>
 
       {/* FAQ */}
       <section className="bg-primary py-20">

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import api from "../api/client";
+import { asset } from "@/lib/asset";
 
 interface Appointment {
   id: number;
@@ -63,7 +64,7 @@ export default function Dashboard() {
       {/* Sidebar */}
       <aside className="w-56 bg-primary flex flex-col flex-shrink-0 h-full">
         <div className="px-5 py-6 border-b border-secondary/30">
-          <img src="/images/logo.png" alt="OrthoRad" className="h-10 w-auto brightness-0 invert" />
+          <img src={asset("images/logo.png")} alt="OrthoRad" className="h-10 w-auto brightness-0 invert" />
         </div>
         <nav className="flex-1 px-3 py-4 space-y-1">
           {sideNavItems.map(({ label, icon, to }) => (

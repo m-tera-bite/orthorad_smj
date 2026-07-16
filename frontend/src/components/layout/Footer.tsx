@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { asset } from "@/lib/asset";
 
 export default function Footer() {
   return (
@@ -6,7 +7,7 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-6 py-14 grid grid-cols-1 md:grid-cols-4 gap-10">
         {/* Logo */}
         <div>
-          <img src="/images/logo.png" alt="OrthoRad" className="h-14 w-auto mb-4" />
+          <img src={asset("images/logo.png")} alt="OrthoRad" className="h-14 w-auto mb-4" />
         </div>
 
         {/* Servicios */}
