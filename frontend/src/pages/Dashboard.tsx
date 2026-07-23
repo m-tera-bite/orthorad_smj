@@ -1,188 +1,750 @@
-import { useEffect, useState } from "react";
-import { Link, NavLink, useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import api from "../api/client";
-import { asset } from "@/lib/asset";
 
-interface Appointment {
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+interface Stat {
+  label: string;
+  value: number | string;
+  subtitle: string;
+}
+
+interface AppointmentRow {
   id: number;
+  time: string;
   patient_name: string;
   service_name: string;
-  scheduled_at: string;
+  room: string;
   status: string;
 }
 
-const STATUS_STYLES: Record<string, string> = {
-  pending: "bg-secondary/10 text-secondary",
-  confirmed: "bg-action/10 text-action",
-  cancelled: "bg-red-100 text-red-700",
-  completed: "bg-divider text-text",
+interface UploadRow {
+  appointment_id: number;
+  patient_name: string;
+  uploaded_at: string | null;
+}
+
+interface WeekBar {
+  day: string;
+  count: number;
+  is_today: boolean;
+}
+
+interface Banner {
+  patient_name: string;
+  service_name: string;
+  room: string;
+  time: string;
+}
+
+interface Summary {
+  greeting_name: string;
+  stats: {
+    appointments_today: number;
+    appointments_pending: number;
+    new_patients_month: number;
+    reports_emitted: number;
+    reports_emitted_pending: number;
+    reports_uploaded: number;
+    reports_uploaded_pending: number;
+  };
+  current_appointment: Banner | null;
+  next_appointment: Banner | null;
+  todays_appointments: AppointmentRow[];
+  weekly_studies: WeekBar[];
+  upload_status: UploadRow[];
+}
+
+// ─── Constants ───────────────────────────────────────────────────────────────
+
+const STATUS_BG: Record<string, string> = {
+  in_progress: "bg-[#3f6e7a]",
+  pending: "bg-secondary",
+  confirmed: "bg-secondary",
+  completed: "bg-alternative",
+  cancelled: "bg-red-500",
 };
 
-const STATUS_LABELS: Record<string, string> = {
+const STATUS_LABEL: Record<string, string> = {
+  in_progress: "En Curso",
   pending: "Pendiente",
-  confirmed: "En Curso",
-  cancelled: "Cancelado",
+  confirmed: "Confirmado",
   completed: "Completada",
+  cancelled: "Cancelado",
 };
 
-const stats = [
-  { label: "Citas de hoy", value: "8", sub: "5 pendientes" },
-  { label: "Pacientes Nuevos", value: "1", sub: "este mes" },
-  { label: "Reportes Emitidos", value: "2", sub: "6 pendientes" },
-  { label: "Reportes Subidos", value: "1", sub: "7 pendientes" },
+const NAV_ITEMS = [
+  {
+    label: "Dashboard",
+    to: "/dashboard",
+    icon: (
+      <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
+        <rect x="1" y="1" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5" />
+        <rect x="10" y="1" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5" />
+        <rect x="1" y="10" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5" />
+        <rect x="10" y="10" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5" />
+      </svg>
+    ),
+  },
+  {
+    label: "Pacientes",
+    to: "/dashboard/pacientes",
+    icon: (
+      <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
+        <circle cx="8.5" cy="5.5" r="3" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M2 15c0-3.314 2.91-6 6.5-6s6.5 2.686 6.5 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    label: "Reportes",
+    to: "/dashboard/reportes",
+    icon: (
+      <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
+        <rect x="3" y="1" width="11" height="15" rx="1" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M6 5h5M6 8h5M6 11h3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    label: "Citas de hoy",
+    to: "/dashboard/citas",
+    icon: (
+      <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
+        <rect x="1" y="3" width="15" height="13" rx="1" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M5 1v4M12 1v4M1 7h15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    ),
+  },
 ];
 
-const sideNavItems = [
-  { label: "Dashboard", icon: "⊞", to: "/dashboard" },
-  { label: "Pacientes", icon: "👤", to: "/dashboard/pacientes" },
-  { label: "Reportes", icon: "📄", to: "/dashboard/reportes" },
-  { label: "Citas de hoy", icon: "📅", to: "/dashboard/citas" },
-];
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+function StatCard({ label, value, subtitle }: Stat) {
+  return (
+    <div className="rounded-[10px] overflow-hidden bg-white flex-1" style={{ minWidth: 0 }}>
+      <div className="bg-primary px-[10px] py-[10px]">
+        <p className="text-white font-montserrat font-semibold text-[14px] leading-[22px]">{label}</p>
+      </div>
+      <div className="px-[20px] py-[6px] flex items-baseline gap-3">
+        <span className="text-primary font-montserrat font-bold text-[40px] leading-[52px]">
+          {value}
+        </span>
+        <span className="text-secondary font-quicksand text-[12px]">{subtitle}</span>
+      </div>
+    </div>
+  );
+}
+
+function WeeklyBar({ bars }: { bars: WeekBar[] }) {
+  const max = Math.max(...bars.map((b) => b.count), 1);
+  return (
+    <div className="flex items-end gap-3 h-[90px] px-1">
+      {bars.map(({ day, count, is_today }) => (
+        <div key={day} className="flex flex-col items-center gap-1 flex-1">
+          <span className="text-[10px] font-quicksand text-secondary">{count}</span>
+          <div
+            className={`w-full rounded-t-sm transition-all duration-300 ${
+              is_today ? "bg-primary" : "bg-alternative/60"
+            }`}
+            style={{ height: `${Math.max((count / max) * 60, 4)}px` }}
+          />
+          <span
+            className={`text-[10px] font-quicksand ${
+              is_today ? "text-primary font-bold" : "text-text"
+            }`}
+          >
+            {day}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Upload Modal ─────────────────────────────────────────────────────────────
+
+interface UploadModalProps {
+  appointments: AppointmentRow[];
+  onClose: () => void;
+  onUploaded: (appointmentId: number, time: string) => void;
+}
+
+function UploadModal({ appointments, onClose, onUploaded }: UploadModalProps) {
+  const [selectedId, setSelectedId] = useState<number | "">(appointments[0]?.id ?? "");
+  const [file, setFile] = useState<File | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  async function handleSubmit() {
+    if (!selectedId || !file) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const { data } = await api.post(
+        `/appointments/${selectedId}/report/upload/`,
+        form,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      );
+      onUploaded(Number(selectedId), data.uploaded_at);
+      onClose();
+    } catch {
+      setError("No se pudo subir el archivo. Intenta de nuevo.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragging(false);
+    const f = e.dataTransfer.files[0];
+    if (f) setFile(f);
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ backgroundColor: "rgba(92,51,23,0.4)" }}
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="bg-background-alt rounded-[10px] w-full max-w-md mx-4 overflow-hidden shadow-xl">
+        {/* Modal header */}
+        <div className="bg-primary px-6 py-4 flex items-center justify-between">
+          <h2 className="text-white font-montserrat font-bold text-[18px]">Subir Resultado</h2>
+          <button
+            onClick={onClose}
+            className="text-alternative hover:text-white transition-colors text-xl leading-none"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="p-6 space-y-5">
+          {/* Appointment selector */}
+          <div>
+            <label className="block text-primary font-quicksand font-semibold text-sm mb-2">
+              Paciente / Cita
+            </label>
+            <select
+              value={selectedId}
+              onChange={(e) => setSelectedId(Number(e.target.value))}
+              className="w-full border border-divider rounded-[10px] px-4 py-2.5 text-text font-quicksand text-sm focus:outline-none focus:border-secondary bg-white"
+            >
+              {appointments.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.time} — {a.patient_name} ({a.service_name})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Drop zone */}
+          <div>
+            <label className="block text-primary font-quicksand font-semibold text-sm mb-2">
+              Archivo
+            </label>
+            <div
+              className={`border-2 border-dashed rounded-[10px] px-4 py-8 text-center cursor-pointer transition-colors ${
+                dragging
+                  ? "border-secondary bg-secondary/10"
+                  : "border-alternative bg-background hover:border-secondary"
+              }`}
+              onClick={() => inputRef.current?.click()}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragging(true);
+              }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={handleDrop}
+            >
+              <input
+                ref={inputRef}
+                type="file"
+                className="hidden"
+                accept="image/*,.pdf,.dcm"
+                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              />
+              {file ? (
+                <div className="space-y-1">
+                  <p className="text-primary font-montserrat font-semibold text-sm">{file.name}</p>
+                  <p className="text-text text-xs font-quicksand">
+                    {(file.size / 1024).toFixed(1)} KB
+                  </p>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setFile(null);
+                    }}
+                    className="text-xs text-secondary underline font-quicksand"
+                  >
+                    Quitar archivo
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <svg
+                    className="mx-auto text-alternative"
+                    width="36"
+                    height="36"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                  >
+                    <path
+                      d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  <p className="text-text font-quicksand text-sm">
+                    Arrastra o{" "}
+                    <span className="text-secondary underline">selecciona</span> el archivo
+                  </p>
+                  <p className="text-text/60 font-quicksand text-xs">Imágenes, PDF o DICOM</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {error && <p className="text-red-600 text-sm font-quicksand">{error}</p>}
+
+          {/* Actions */}
+          <div className="flex gap-3 pt-1">
+            <button
+              onClick={onClose}
+              className="flex-1 border border-primary text-primary py-2.5 rounded-[10px] font-quicksand font-semibold text-sm hover:bg-primary hover:text-white transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={!selectedId || !file || loading}
+              className="flex-1 bg-[#3f6e7a] text-white py-2.5 rounded-[10px] font-quicksand font-semibold text-sm hover:bg-[#3f6e7a]/80 transition-colors disabled:opacity-50"
+            >
+              {loading ? "Subiendo..." : "Subir"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Dashboard ───────────────────────────────────────────────────────────
 
 export default function Dashboard() {
   const { logout } = useAuth();
   const navigate = useNavigate();
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showUpload, setShowUpload] = useState(false);
 
   useEffect(() => {
-    api.get("/appointments/").then(({ data }) => setAppointments(data)).finally(() => setLoading(false));
+    api
+      .get("/dashboard/summary/")
+      .then(({ data }) => setSummary(data))
+      .finally(() => setLoading(false));
   }, []);
 
-  function handleLogout() {
-    logout();
-    navigate("/");
+  function handleUploaded(appointmentId: number, time: string) {
+    setSummary((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        stats: {
+          ...prev.stats,
+          reports_uploaded: prev.stats.reports_uploaded + 1,
+          reports_uploaded_pending: Math.max(0, prev.stats.reports_uploaded_pending - 1),
+          reports_emitted: prev.stats.reports_emitted + 1,
+          reports_emitted_pending: Math.max(0, prev.stats.reports_emitted_pending - 1),
+        },
+        upload_status: prev.upload_status.map((row) =>
+          row.appointment_id === appointmentId ? { ...row, uploaded_at: time } : row
+        ),
+      };
+    });
+  }
+
+  function greeting() {
+    const h = new Date().getHours();
+    if (h < 12) return "Buenos días";
+    if (h < 19) return "Buenas tardes";
+    return "Buenas noches";
   }
 
   const today = new Date().toLocaleDateString("es-MX", {
-    weekday: "long", year: "numeric", month: "long", day: "numeric",
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
   });
+
+  const stats: Stat[] = summary
+    ? [
+        {
+          label: "Citas de hoy",
+          value: summary.stats.appointments_today,
+          subtitle: `${summary.stats.appointments_pending} pendientes`,
+        },
+        {
+          label: "Pacientes Nuevos",
+          value: summary.stats.new_patients_month,
+          subtitle: "este mes",
+        },
+        {
+          label: "Reportes Emitidos",
+          value: summary.stats.reports_emitted,
+          subtitle: `${summary.stats.reports_emitted_pending} pendientes`,
+        },
+        {
+          label: "Reportes Subidos",
+          value: summary.stats.reports_uploaded,
+          subtitle: `${summary.stats.reports_uploaded_pending} pendientes`,
+        },
+      ]
+    : [];
 
   return (
     <div className="flex h-screen overflow-hidden bg-background font-quicksand">
-      {/* Sidebar */}
-      <aside className="w-56 bg-primary flex flex-col flex-shrink-0 h-full">
-        <div className="px-5 py-6 border-b border-secondary/30">
-          <img src={asset("images/logo.png")} alt="OrthoRad" className="h-10 w-auto brightness-0 invert" />
-        </div>
-        <nav className="flex-1 px-3 py-4 space-y-1">
-          {sideNavItems.map(({ label, icon, to }) => (
+      {/* ── Sidebar | Figma: 249×920, pad=[38,17,38,17] ── */}
+      <aside
+        className="flex flex-col flex-shrink-0 h-full bg-primary"
+        style={{ width: 249, padding: "38px 17px" }}
+      >
+        {/* Logo | Figma: 204×86 */}
+        <img
+          src="/images/logo.png"
+          alt="OrthoRad"
+          className="brightness-0 invert mb-7"
+          style={{ width: 204, height: 86, objectFit: "contain" }}
+        />
+
+        {/* Nav items */}
+        <nav className="flex flex-col gap-3 flex-1">
+          {NAV_ITEMS.map(({ label, to, icon }) => (
             <NavLink
               key={label}
               to={to}
               end={to === "/dashboard"}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                `flex items-center gap-3 rounded-[10px] font-semibold text-[13px] leading-5 transition-colors ${
                   isActive
-                    ? "bg-secondary text-white"
-                    : "text-alternative hover:bg-secondary/20 hover:text-white"
+                    ? "bg-white text-primary"
+                    : "text-alternative hover:bg-white/10 hover:text-white"
                 }`
               }
+              style={{ padding: "10px 14px" }}
             >
-              <span className="text-base">{icon}</span>
+              {icon}
               {label}
             </NavLink>
           ))}
         </nav>
-        <div className="px-3 py-4 border-t border-secondary/30 space-y-1">
-          <Link
-            to="#"
-            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-alternative hover:bg-secondary/20 hover:text-white transition-colors"
+
+        {/* Footer */}
+        <div className="flex flex-col gap-3 mt-6">
+          <div className="border-t border-alternative/30" />
+          <NavLink
+            to="/dashboard/configuracion"
+            className="flex items-center gap-3 text-alternative hover:bg-white/10 hover:text-white rounded-[10px] font-semibold text-[13px] transition-colors"
+            style={{ padding: "10px 14px" }}
           >
-            <span>⚙</span> Configuración
-          </Link>
+            <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
+              <circle cx="8.5" cy="8.5" r="2.5" stroke="currentColor" strokeWidth="1.5" />
+              <path
+                d="M8.5 1v2M8.5 14v2M1 8.5h2M14 8.5h2M3.4 3.4l1.4 1.4M12.2 12.2l1.4 1.4M3.4 13.6l1.4-1.4M12.2 4.8l1.4-1.4"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            </svg>
+            Configuración
+          </NavLink>
           <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-alternative hover:bg-secondary/20 hover:text-white transition-colors"
+            onClick={() => {
+              logout();
+              navigate("/");
+            }}
+            className="flex items-center gap-3 text-alternative hover:bg-white/10 hover:text-white rounded-[10px] font-semibold text-[13px] transition-colors w-full text-left"
+            style={{ padding: "10px 14px" }}
           >
-            <span>→</span> Cerrar sesión
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path
+                d="M6 14H3a1 1 0 01-1-1V3a1 1 0 011-1h3M11 11l3-3-3-3M14 8H6"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            Cerrar sesión
           </button>
         </div>
       </aside>
 
-      {/* Main content */}
-      <div className="flex-1 overflow-y-auto">
-        {/* Top bar */}
-        <header className="bg-alternative/30 px-8 py-4 flex items-center justify-between border-b border-divider sticky top-0 z-10">
-          <h1 className="font-montserrat font-bold text-primary text-lg">Dashboard</h1>
-          <div className="flex gap-3">
-            <button className="border border-primary text-primary px-4 py-2 rounded-lg text-xs font-medium hover:bg-primary hover:text-white transition-colors flex items-center gap-1.5">
-              ↑ Subir Resultados
+      {/* ── Main Content ── */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header | Figma: bg=#cfac8c, pad=[13,40,13,40] */}
+        <header
+          className="flex items-center justify-between flex-shrink-0"
+          style={{ backgroundColor: "#cfac8c", padding: "13px 40px" }}
+        >
+          <h1 className="text-white font-montserrat font-bold text-[20px]">Dashboard</h1>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setShowUpload(true)}
+              className="flex items-center gap-2 border border-white text-white font-montserrat font-bold text-[12px] rounded-[10px] hover:bg-white/10 transition-colors"
+              style={{ padding: "8px 16px", height: 36 }}
+            >
+              <svg width="13" height="12" viewBox="0 0 13 12" fill="none">
+                <path
+                  d="M6.5 1v7M3 4l3.5-3L10 4M1 10h11"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              Subir Resultados
             </button>
-            <button className="bg-action text-white px-4 py-2 rounded-lg text-xs font-medium hover:bg-action-dark transition-colors flex items-center gap-1.5">
-              + Nueva Cita
+            <button
+              className="flex items-center gap-2 text-white font-montserrat font-bold text-[12px] rounded-[10px] hover:opacity-80 transition-opacity"
+              style={{ backgroundColor: "#3f6e7a", padding: "8px 16px", height: 34 }}
+            >
+              <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+                <path d="M5.5 1v9M1 5.5h9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+              Nueva Cita
             </button>
           </div>
         </header>
 
-        <div className="px-8 py-6">
-          {/* Greeting */}
-          <div className="mb-6">
-            <h2 className="font-montserrat font-bold text-primary text-2xl">Buenos días, Joselyn</h2>
-            <p className="text-text text-sm capitalize">{today}</p>
-          </div>
-
-          {/* Stat cards */}
-          <div className="grid grid-cols-4 gap-4 mb-6">
-            {stats.map(({ label, value, sub }) => (
-              <div key={label} className="bg-primary rounded-xl px-5 py-4 text-white">
-                <p className="text-xs text-alternative font-medium mb-2">{label}</p>
-                <p className="font-montserrat font-bold text-3xl">{value}</p>
-                <p className="text-alternative text-xs mt-1">{sub}</p>
+        {/* Body | Figma: bg=#fffcf7, pad=[20,40,40,40] */}
+        <main
+          className="flex-1 overflow-y-auto flex flex-col gap-4"
+          style={{ backgroundColor: "#fffcf7", padding: "20px 40px 40px" }}
+        >
+          {loading ? (
+            <div className="flex-1 flex items-center justify-center text-secondary font-quicksand">
+              Cargando...
+            </div>
+          ) : (
+            <>
+              {/* Greeting */}
+              <div>
+                <p className="font-montserrat font-bold text-primary text-[32px]">
+                  {greeting()}, {summary?.greeting_name}
+                </p>
+                <p className="text-secondary font-quicksand capitalize text-[12px] mt-1">
+                  {today}
+                </p>
               </div>
-            ))}
-          </div>
 
-          {/* Status banners */}
-          <div className="grid grid-cols-2 gap-4 mb-6">
-            <div className="bg-action text-white rounded-xl px-4 py-3 text-xs font-medium">
-              En progreso: Tomografía Dental 3D · Maria García · Sala 1 · 10:15 a.m.
-            </div>
-            <div className="bg-background-alt border border-divider rounded-xl px-4 py-3 text-xs text-text">
-              Siguiente: Cefalometría · José Sanchéz · Sala 2 · 10:30 a.m.
-            </div>
-          </div>
+              {/* Summary Cards */}
+              <div className="flex gap-5">
+                {stats.map((s) => (
+                  <StatCard key={s.label} {...s} />
+                ))}
+              </div>
 
-          {/* Appointments table */}
-          <div className="bg-white rounded-2xl border border-divider overflow-hidden">
-            <div className="px-6 py-4 flex items-center justify-between border-b border-divider">
-              <h3 className="font-montserrat font-bold text-primary text-base">Citas de hoy</h3>
-              <button className="text-secondary text-xs hover:text-primary transition-colors">Ver todas ↗</button>
-            </div>
+              {/* Progress banners */}
+              <div className="flex gap-10">
+                <div
+                  className="flex-1 flex items-center rounded-[10px] text-white font-montserrat font-bold text-[12px]"
+                  style={{ backgroundColor: "#3f6e7a", padding: "10px 20px", minHeight: 39 }}
+                >
+                  {summary?.current_appointment
+                    ? `En progreso: ${summary.current_appointment.service_name} · ${summary.current_appointment.patient_name}${summary.current_appointment.room ? ` · ${summary.current_appointment.room}` : ""} · ${summary.current_appointment.time}`
+                    : "Sin cita en progreso"}
+                </div>
+                <div
+                  className="flex-1 flex items-center rounded-[10px] text-primary font-quicksand text-[12px]"
+                  style={{ backgroundColor: "#f5ede3", padding: "10px 20px", minHeight: 39 }}
+                >
+                  {summary?.next_appointment
+                    ? `Siguiente: ${summary.next_appointment.service_name} · ${summary.next_appointment.patient_name}${summary.next_appointment.room ? ` · ${summary.next_appointment.room}` : ""} · ${summary.next_appointment.time}`
+                    : "Sin próximas citas"}
+                </div>
+              </div>
 
-            {loading ? (
-              <div className="p-10 text-center text-text text-sm">Cargando...</div>
-            ) : appointments.length === 0 ? (
-              <div className="p-10 text-center text-text text-sm">No hay citas registradas.</div>
-            ) : (
-              <table className="w-full text-sm">
-                <tbody className="divide-y divide-divider">
-                  {appointments.map((appt) => {
-                    const time = new Date(appt.scheduled_at).toLocaleTimeString("es-MX", {
-                      hour: "2-digit", minute: "2-digit",
-                    });
-                    return (
-                      <tr key={appt.id} className="hover:bg-background transition-colors">
-                        <td className="px-6 py-3 text-primary font-montserrat font-semibold text-sm w-16">{time}</td>
-                        <td className="px-2 py-3">
-                          <p className="font-medium text-primary text-sm">{appt.patient_name}</p>
-                          <p className="text-text text-xs">{appt.service_name} · Sala 1</p>
-                        </td>
-                        <td className="px-6 py-3 text-right">
-                          <span className={`px-3 py-1 rounded-lg text-xs font-medium ${STATUS_STYLES[appt.status]}`}>
-                            {STATUS_LABELS[appt.status]}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </div>
+              {/* Left + Right panels */}
+              <div className="flex gap-5 flex-1 min-h-0" style={{ minHeight: 400 }}>
+                {/* Today's Appointments | Figma: 670×549, r=10 */}
+                <div
+                  className="flex flex-col overflow-hidden bg-white"
+                  style={{ borderRadius: 10, flex: "0 0 670px" }}
+                >
+                  <div
+                    className="flex items-center justify-between flex-shrink-0"
+                    style={{ backgroundColor: "#f5ede3", padding: "18px 20px 18px 40px" }}
+                  >
+                    <span className="text-secondary font-montserrat font-bold text-[20px]">
+                      Citas de hoy
+                    </span>
+                    <button className="text-primary font-montserrat font-bold text-[10px] hover:text-secondary transition-colors">
+                      Ver todas ↗
+                    </button>
+                  </div>
+                  <div className="overflow-y-auto flex-1">
+                    {!summary?.todays_appointments.length ? (
+                      <div className="p-10 text-center text-text font-quicksand text-sm">
+                        No hay citas registradas para hoy.
+                      </div>
+                    ) : (
+                      summary.todays_appointments.map((appt, i) => (
+                        <div
+                          key={appt.id}
+                          className="flex items-center"
+                          style={{
+                            height: 70,
+                            padding: "10px 20px",
+                            gap: 20,
+                            backgroundColor: i % 2 === 0 ? "#ffffff" : "#fffcf7",
+                          }}
+                        >
+                          <div
+                            className="flex-shrink-0 flex items-center"
+                            style={{ width: 86, padding: 10 }}
+                          >
+                            <span className="text-primary font-montserrat font-bold text-[16px]">
+                              {appt.time}
+                            </span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-primary font-montserrat font-bold text-[16px] truncate">
+                              {appt.patient_name}
+                            </p>
+                            <p className="text-secondary font-quicksand text-[13px] truncate">
+                              {appt.service_name}
+                              {appt.room ? ` · ${appt.room}` : ""}
+                            </p>
+                          </div>
+                          <div
+                            className={`flex-shrink-0 flex items-center justify-center rounded-[10px] text-white font-montserrat font-bold text-[12px] ${
+                              STATUS_BG[appt.status] ?? "bg-divider"
+                            }`}
+                            style={{ width: 116, height: 34, padding: "0 10px" }}
+                          >
+                            {STATUS_LABEL[appt.status] ?? appt.status}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Right Column */}
+                <div className="flex flex-col flex-1 min-w-0 gap-4">
+                  {/* Weekly Studies */}
+                  <div className="overflow-hidden" style={{ borderRadius: 10 }}>
+                    <div
+                      className="flex items-center justify-between"
+                      style={{ backgroundColor: "#f5ede3", padding: "10px 20px" }}
+                    >
+                      <span className="text-secondary font-montserrat font-bold text-[16px]">
+                        Estudios / Semana
+                      </span>
+                      <button className="text-primary font-montserrat font-bold text-[10px] hover:text-secondary transition-colors">
+                        Ver mes ↗
+                      </button>
+                    </div>
+                    <div className="bg-white" style={{ padding: "15px 20px 10px" }}>
+                      <WeeklyBar bars={summary?.weekly_studies ?? []} />
+                    </div>
+                  </div>
+
+                  {/* Upload Status */}
+                  <div
+                    className="flex flex-col overflow-hidden flex-1"
+                    style={{ borderRadius: 10, backgroundColor: "#ffffff" }}
+                  >
+                    <div
+                      className="flex items-center justify-between flex-shrink-0"
+                      style={{ backgroundColor: "#f5ede3", padding: "10px 20px" }}
+                    >
+                      <span className="text-secondary font-montserrat font-bold text-[16px]">
+                        Estado de Subida
+                      </span>
+                      <button className="text-primary font-montserrat font-bold text-[10px] hover:text-secondary transition-colors">
+                        Ver todas ↗
+                      </button>
+                    </div>
+                    <div className="overflow-y-auto flex-1">
+                      {summary?.upload_status.map((row, i) => {
+                        const uploaded = !!row.uploaded_at;
+                        return (
+                          <div
+                            key={row.appointment_id}
+                            className="flex items-center gap-3"
+                            style={{
+                              height: 50,
+                              padding: "10px 20px",
+                              backgroundColor: i % 2 === 0 ? "#ffffff" : "#fffcf7",
+                            }}
+                          >
+                            <div
+                              className={`w-[14px] h-[14px] rounded-sm border flex-shrink-0 flex items-center justify-center ${
+                                uploaded
+                                  ? "bg-[#3f6e7a] border-[#3f6e7a]"
+                                  : "border-alternative"
+                              }`}
+                            >
+                              {uploaded && (
+                                <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
+                                  <path
+                                    d="M1 3l2.5 2.5L8 1"
+                                    stroke="white"
+                                    strokeWidth="1.5"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  />
+                                </svg>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p
+                                className={`font-montserrat font-bold text-[14px] truncate ${
+                                  uploaded ? "text-primary" : "text-alternative"
+                                }`}
+                              >
+                                {row.patient_name}
+                              </p>
+                              <p
+                                className={`font-quicksand text-[11px] ${
+                                  uploaded ? "text-secondary" : "text-primary"
+                                }`}
+                              >
+                                {uploaded ? `Subido ${row.uploaded_at}` : "Pendiente"}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </main>
       </div>
+
+      {/* Upload Modal */}
+      {showUpload && summary && (
+        <UploadModal
+          appointments={summary.todays_appointments}
+          onClose={() => setShowUpload(false)}
+          onUploaded={handleUploaded}
+        />
+      )}
     </div>
   );
 }

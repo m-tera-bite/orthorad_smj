@@ -29,3 +29,6 @@ frontend/node_modules/
 Thumbs.db
 /png_refs
 /pdf_refs
+
+# GCS 
+orthorad-smj-5df687af2e81.json

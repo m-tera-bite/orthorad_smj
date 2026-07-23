@@ -90,15 +90,24 @@ export default function Navbar() {
           ))}
         </ul>
 
-        {/* Account controls — guest CTAs live in the contact bar above, not duplicated here */}
+        {/* Account controls — shown only when logged in */}
         {user && (
           <div className="hidden md:flex items-center gap-3 font-quicksand text-sm">
-            <Link to="/portal-cliente" className="text-text hover:text-secondary transition-colors">
-              Mi Portal
-            </Link>
+            {user.is_staff ? (
+              <Link
+                to="/dashboard"
+                className="bg-primary text-white px-4 py-2 rounded-[5px] hover:bg-secondary transition-colors font-medium"
+              >
+                Dashboard
+              </Link>
+            ) : (
+              <Link to="/portal-cliente" className="text-text hover:text-secondary transition-colors">
+                Mi Portal
+              </Link>
+            )}
             <button
               onClick={logout}
-              className="bg-primary text-white px-4 py-2 rounded-[5px] hover:bg-secondary transition-colors text-sm font-medium"
+              className="border border-primary text-primary px-4 py-2 rounded-[5px] hover:bg-primary hover:text-white transition-colors font-medium"
             >
               Salir
             </button>

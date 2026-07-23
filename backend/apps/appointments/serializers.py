@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Appointment, Service
+from .models import Appointment, Service, Report
 
 
 class ServiceSerializer(serializers.ModelSerializer):
@@ -22,7 +22,15 @@ class AppointmentSerializer(serializers.ModelSerializer):
             "service_name",
             "scheduled_at",
             "notes",
+            "room",
             "status",
             "created_at",
         ]
         read_only_fields = ["status", "created_at"]
+
+
+class ReportSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Report
+        fields = ["id", "appointment", "file", "emitted_at", "uploaded_at", "created_at"]
+        read_only_fields = ["emitted_at", "uploaded_at", "created_at"]

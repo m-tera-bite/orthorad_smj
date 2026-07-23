@@ -5,7 +5,7 @@ import { useAuth } from "../context/AuthContext";
 export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -15,8 +15,8 @@ export default function Login() {
     setLoading(true);
     setError(null);
     try {
-      await login(username, password);
-      navigate("/portal-cliente");
+      const loggedInUser = await login(email, password);
+      navigate(loggedInUser.is_staff ? "/dashboard" : "/portal-cliente");
     } catch {
       setError("Usuario o contraseña incorrectos.");
     } finally {
@@ -38,15 +38,15 @@ export default function Login() {
         <form onSubmit={handleSubmit} className="bg-background-alt border border-divider rounded-2xl p-8 space-y-4">
           <div>
             <label className="block text-sm font-quicksand font-medium text-text mb-1">
-              Usuario o correo
+              Correo electrónico
             </label>
             <input
-              type="text"
+              type="email"
               required
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className={inputClass}
-              autoComplete="username"
+              autoComplete="email"
             />
           </div>
           <div>
