@@ -1,11 +1,33 @@
 from django.db import models
 
 
+def _report_file_path(instance, filename):
+    return f"reports/{instance.report.appointment_id}/{filename}"
+
+
+class ServiceCategory(models.Model):
+    name = models.CharField(max_length=100)
+    order = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ["order"]
+
+    def __str__(self):
+        return self.name
+
+
 class Service(models.Model):
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     duration_minutes = models.PositiveIntegerField(default=30)
     is_active = models.BooleanField(default=True)
+    category = models.ForeignKey(
+        ServiceCategory,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="services",
+    )
 
     def __str__(self):
         return self.name
@@ -41,10 +63,19 @@ class Report(models.Model):
     appointment = models.OneToOneField(
         Appointment, on_delete=models.CASCADE, related_name="report"
     )
-    file = models.FileField(upload_to="reports/", blank=True, null=True)
     emitted_at = models.DateTimeField(null=True, blank=True)
     uploaded_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"Reporte — {self.appointment}"
+
+
+class ReportFile(models.Model):
+    report = models.ForeignKey(Report, on_delete=models.CASCADE, related_name="files")
+    file = models.FileField(upload_to=_report_file_path)
+    original_name = models.CharField(max_length=255, blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.original_name or self.file.name

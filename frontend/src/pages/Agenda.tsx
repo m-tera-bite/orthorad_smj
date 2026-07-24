@@ -2,10 +2,16 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import api from "../api/client";
 
+interface ServiceCategory {
+  id: number;
+  name: string;
+}
+
 interface Service {
   id: number;
   name: string;
   duration_minutes: number;
+  category: ServiceCategory | null;
 }
 
 type Step = 1 | 2 | 3;
@@ -150,35 +156,52 @@ export default function Agenda() {
               <h3 className="font-montserrat font-bold text-primary text-xl mb-1">
                 Selecciona el estudio
               </h3>
-              <p className="text-text text-sm mb-6 font-quicksand">
+              <p className="text-text text-sm mb-4 font-quicksand">
                 Elige el tipo de radiografía que necesitas.
               </p>
-              <ul className="space-y-3">
-                {services.map((s, i) => (
-                  <li key={s.id}>
-                    <button
-                      onClick={() => setSelectedService(s)}
-                      className={`w-full flex items-center gap-4 border rounded-xl px-4 py-3 text-left transition-colors ${
-                        selectedService?.id === s.id
-                          ? "border-secondary bg-secondary/5"
-                          : "border-divider hover:border-secondary"
-                      }`}
-                    >
-                      <span className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-montserrat font-bold flex-shrink-0 ${
-                        selectedService?.id === s.id ? "bg-secondary text-white" : "bg-background text-primary"
-                      }`}>
-                        {String(i + 1).padStart(2, "0")}
-                      </span>
-                      <span className="flex-1 font-montserrat font-medium text-primary text-sm">
-                        {s.name}
-                      </span>
-                      <span className="text-xs text-text font-quicksand flex items-center gap-1">
-                        🕐 {s.duration_minutes} min
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              <div className="overflow-y-auto max-h-[50vh] md:max-h-[460px] pr-1 -mr-1">
+                {(() => {
+                  const grouped = services.reduce((acc, s) => {
+                    const key = s.category?.name ?? "Otros";
+                    if (!acc[key]) acc[key] = [];
+                    acc[key].push(s);
+                    return acc;
+                  }, {} as Record<string, Service[]>);
+
+                  return Object.entries(grouped).map(([cat, items]) => (
+                    <div key={cat}>
+                      <p className="text-xs font-montserrat font-bold text-secondary uppercase tracking-widest mb-2 mt-5 first:mt-0">
+                        {cat}
+                      </p>
+                      <ul className="space-y-2">
+                        {items.map((s) => (
+                          <li key={s.id}>
+                            <button
+                              onClick={() => setSelectedService(s)}
+                              className={`w-full flex items-center gap-4 border rounded-xl px-4 py-3 text-left transition-colors ${
+                                selectedService?.id === s.id
+                                  ? "border-secondary bg-secondary/5"
+                                  : "border-divider hover:border-secondary"
+                              }`}
+                            >
+                              <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                                selectedService?.id === s.id ? "bg-secondary" : "bg-divider"
+                              }`} />
+                              <span className="flex-1 font-montserrat font-medium text-primary text-sm">
+                                {s.name}
+                              </span>
+                              <span className="text-xs text-text font-quicksand flex items-center gap-1">
+                                🕐 {s.duration_minutes} min
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ));
+                })()}
+              </div>
+
               <div className="mt-6 flex justify-end">
                 <button
                   disabled={!selectedService}

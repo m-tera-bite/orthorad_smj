@@ -1,6 +1,7 @@
 from .base import *
 import dj_database_url
 from decouple import config
+from datetime import timedelta
 
 DEBUG = False
 ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="").split(",")
@@ -13,3 +14,27 @@ CORS_ALLOWED_ORIGINS = config("CORS_ALLOWED_ORIGINS", default="").split(",")
 CORS_ALLOW_CREDENTIALS = True
 
 CSRF_TRUSTED_ORIGINS = config("CSRF_TRUSTED_ORIGINS", default="").split(",")
+
+GS_BUCKET_NAME = config("GCS_BUCKET_NAME", default="")
+if GS_BUCKET_NAME:
+    STORAGES = {
+        **STORAGES,
+        "default": {
+            "BACKEND": "storages.backends.gcloud.GoogleCloudStorage",
+        },
+    }
+    GS_DEFAULT_ACL = None
+    GS_QUERYSTRING_AUTH = True
+    GS_EXPIRATION = timedelta(hours=8)
+    MEDIA_URL = f"https://storage.googleapis.com/{GS_BUCKET_NAME}/"
+
+    _gcs_json = config("GCS_CREDENTIALS_JSON", default="")
+    if _gcs_json:
+        import json
+        from google.oauth2 import service_account
+        GS_CREDENTIALS = service_account.Credentials.from_service_account_info(
+            json.loads(_gcs_json)
+        )
+else:
+    MEDIA_URL = "/media/"
+    MEDIA_ROOT = BASE_DIR / "media"

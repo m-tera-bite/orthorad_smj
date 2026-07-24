@@ -1,6 +1,8 @@
 from .base import *
 import dj_database_url
+import os
 from decouple import config
+from datetime import timedelta
 
 DEBUG = True
 ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
@@ -23,9 +25,15 @@ CORS_ALLOW_CREDENTIALS = True
 #   GOOGLE_APPLICATION_CREDENTIALS — path to a .json key file (local dev)
 GS_BUCKET_NAME = config("GCS_BUCKET_NAME", default="")
 if GS_BUCKET_NAME:
-    DEFAULT_FILE_STORAGE = "storages.backends.gcs.GoogleCloudStorage"
-    GS_DEFAULT_ACL = None        # use bucket-level IAM, not per-object ACLs
-    GS_QUERYSTRING_AUTH = False  # public bucket → plain URLs, no signing needed
+    STORAGES = {
+        **STORAGES,
+        "default": {
+            "BACKEND": "storages.backends.gcloud.GoogleCloudStorage",
+        },
+    }
+    GS_DEFAULT_ACL = None          # use bucket-level IAM, not per-object ACLs
+    GS_QUERYSTRING_AUTH = True     # generate signed URLs (bucket is private)
+    GS_EXPIRATION = timedelta(hours=8)
     MEDIA_URL = f"https://storage.googleapis.com/{GS_BUCKET_NAME}/"
 
     _gcs_json = config("GCS_CREDENTIALS_JSON", default="")
@@ -35,8 +43,12 @@ if GS_BUCKET_NAME:
         GS_CREDENTIALS = service_account.Credentials.from_service_account_info(
             json.loads(_gcs_json)
         )
-    # If GCS_CREDENTIALS_JSON is absent, the Google SDK falls back to
-    # GOOGLE_APPLICATION_CREDENTIALS (file path) automatically — no extra code needed.
+    else:
+        # decouple reads .env but doesn't push into os.environ — the Google SDK
+        # needs GOOGLE_APPLICATION_CREDENTIALS in the real environment, so we set it here.
+        _creds_path = config("GOOGLE_APPLICATION_CREDENTIALS", default="")
+        if _creds_path:
+            os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = _creds_path
 else:
     # Fallback to local media while the bucket isn't configured yet
     MEDIA_URL = "/media/"
