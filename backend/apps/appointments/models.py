@@ -45,6 +45,14 @@ class Appointment(models.Model):
     patient_email = models.EmailField()
     patient_phone = models.CharField(max_length=20)
     service = models.ForeignKey(Service, on_delete=models.PROTECT, related_name="appointments")
+    referring_partner = models.ForeignKey(
+        "partners.Partner",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="appointments",
+        help_text="Clínica asociada que refirió al paciente; da acceso de solo lectura a los resultados.",
+    )
     scheduled_at = models.DateTimeField()
     notes = models.TextField(blank=True)
     room = models.CharField(max_length=50, blank=True)

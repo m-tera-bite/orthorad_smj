@@ -16,7 +16,13 @@ export default function Login() {
     setError(null);
     try {
       const loggedInUser = await login(email, password);
-      navigate(loggedInUser.is_staff ? "/dashboard" : "/portal-cliente");
+      navigate(
+        loggedInUser.is_staff
+          ? "/dashboard"
+          : loggedInUser.partner
+            ? "/socios"
+            : "/portal-cliente"
+      );
     } catch {
       setError("Usuario o contraseña incorrectos.");
     } finally {

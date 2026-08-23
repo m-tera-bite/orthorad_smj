@@ -13,6 +13,12 @@ interface Service {
   category: ServiceCategory | null;
 }
 
+interface PartnerOption {
+  id: number;
+  name: string;
+  is_active: boolean;
+}
+
 interface Props {
   onClose: () => void;
   onCreated: () => void;
@@ -21,11 +27,13 @@ interface Props {
 
 export default function NewAppointmentModal({ onClose, onCreated, defaultEmail = "" }: Props) {
   const [services, setServices] = useState<Service[]>([]);
+  const [partners, setPartners] = useState<PartnerOption[]>([]);
   const [form, setForm] = useState({
     patient_name: "",
     patient_email: defaultEmail,
     patient_phone: "",
     service: "",
+    referring_partner: "",
     scheduled_at: "",
     room: "",
     notes: "",
@@ -35,6 +43,10 @@ export default function NewAppointmentModal({ onClose, onCreated, defaultEmail =
 
   useEffect(() => {
     api.get("/appointments/services/").then(({ data }) => setServices(data));
+    api
+      .get("/partners/")
+      .then(({ data }) => setPartners(data.filter((p: PartnerOption) => p.is_active)))
+      .catch(() => setPartners([]));
   }, []);
 
   function set(field: string, value: string) {
@@ -53,6 +65,7 @@ export default function NewAppointmentModal({ onClose, onCreated, defaultEmail =
       await api.post("/appointments/", {
         ...form,
         service: Number(form.service),
+        referring_partner: form.referring_partner ? Number(form.referring_partner) : null,
       });
       onCreated();
       onClose();
@@ -198,6 +211,24 @@ export default function NewAppointmentModal({ onClose, onCreated, defaultEmail =
                 className={inputClass}
                 placeholder="Ej. Sala 1"
               />
+            </div>
+
+            {/* Referring partner clinic — full width */}
+            <div className="col-span-2">
+              <label className={labelClass}>Clínica referente (opcional)</label>
+              <select
+                value={form.referring_partner}
+                onChange={(e) => set("referring_partner", e.target.value)}
+                className={inputClass}
+              >
+                <option value="">Sin clínica referente</option>
+                {partners.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+              <p className="text-[11px] text-text/50 font-quicksand mt-1">
+                La clínica seleccionada podrá ver este estudio y sus resultados en su portal.
+              </p>
             </div>
 
             {/* Notes — full width */}

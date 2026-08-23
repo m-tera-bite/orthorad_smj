@@ -2,6 +2,11 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
 import { supabase } from "../lib/supabase";
 import api from "../api/client";
 
+export interface PartnerInfo {
+  id: number;
+  name: string;
+}
+
 interface User {
   id: number;
   username: string;
@@ -9,6 +14,7 @@ interface User {
   first_name: string;
   last_name: string;
   is_staff: boolean;
+  partner: PartnerInfo | null;
 }
 
 interface AuthContextType {

@@ -24,9 +24,14 @@ class AppointmentViewSet(viewsets.ModelViewSet):
     serializer_class = AppointmentSerializer
 
     def get_queryset(self):
-        if not self.request.user.is_authenticated:
+        # Only clinic staff may browse/manage appointments through this
+        # viewset. Partner clinics use the read-only /api/partners/portal/
+        # endpoints and patients use their own access flow.
+        if not (self.request.user.is_authenticated and self.request.user.is_staff):
             return Appointment.objects.none()
-        qs = Appointment.objects.select_related("service", "report").order_by("scheduled_at")
+        qs = Appointment.objects.select_related(
+            "service", "report", "referring_partner"
+        ).order_by("scheduled_at")
         date_param = self.request.query_params.get("date")
         if date_param == "today":
             qs = qs.filter(scheduled_at__date=localdate())
@@ -42,7 +47,9 @@ class AppointmentViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action == "create":
             return [permissions.AllowAny()]
-        return [permissions.IsAuthenticated()]
+        # IsAdminUser == is_staff; keeps partner/patient accounts from
+        # listing, modifying, or deleting clinic data.
+        return [permissions.IsAdminUser()]
 
 
 class PatientsListView(APIView):

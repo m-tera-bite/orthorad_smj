@@ -20,6 +20,7 @@ INSTALLED_APPS = [
     "apps.core",
     "apps.appointments",
     "apps.portal",
+    "apps.partners",
 ]
 
 MIDDLEWARE = [
@@ -82,6 +83,9 @@ STORAGES = {
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 SUPABASE_URL = config("SUPABASE_URL")
+# Service-role key (Supabase dashboard → Settings → API). Optional: used to
+# provision partner-clinic logins from the staff dashboard. Keep it secret.
+SUPABASE_SERVICE_ROLE_KEY = config("SUPABASE_SERVICE_ROLE_KEY", default="")
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (

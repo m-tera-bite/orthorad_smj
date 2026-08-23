@@ -4,9 +4,19 @@ from .models import PatientProfile
 
 
 class UserSerializer(serializers.ModelSerializer):
+    partner = serializers.SerializerMethodField()
+
+    def get_partner(self, obj):
+        """Active partner clinic this user belongs to, if any — lets the SPA
+        route partner users to their portal."""
+        link = getattr(obj, "partner_link", None)
+        if link is None or not link.partner.is_active:
+            return None
+        return {"id": link.partner.id, "name": link.partner.name}
+
     class Meta:
         model = User
-        fields = ["id", "username", "email", "first_name", "last_name", "is_staff"]
+        fields = ["id", "username", "email", "first_name", "last_name", "is_staff", "partner"]
         read_only_fields = ["id"]
 
 

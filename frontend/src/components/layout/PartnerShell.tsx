@@ -3,20 +3,8 @@ import { useAuth } from "../../context/AuthContext";
 
 const NAV_ITEMS = [
   {
-    label: "Dashboard",
-    to: "/dashboard",
-    icon: (
-      <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
-        <rect x="1" y="1" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5" />
-        <rect x="10" y="1" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5" />
-        <rect x="1" y="10" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5" />
-        <rect x="10" y="10" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5" />
-      </svg>
-    ),
-  },
-  {
     label: "Pacientes",
-    to: "/dashboard/pacientes",
+    to: "/socios",
     icon: (
       <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
         <circle cx="8.5" cy="5.5" r="3" stroke="currentColor" strokeWidth="1.5" />
@@ -25,8 +13,8 @@ const NAV_ITEMS = [
     ),
   },
   {
-    label: "Reportes",
-    to: "/dashboard/reportes",
+    label: "Resultados",
+    to: "/socios/resultados",
     icon: (
       <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
         <rect x="3" y="1" width="11" height="15" rx="1" stroke="currentColor" strokeWidth="1.5" />
@@ -34,29 +22,10 @@ const NAV_ITEMS = [
       </svg>
     ),
   },
-  {
-    label: "Socios",
-    to: "/dashboard/socios",
-    icon: (
-      <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
-        <path d="M2 15V6l6.5-4L15 6v9M2 15h13M5.5 15v-4h6v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    ),
-  },
-  {
-    label: "Citas de hoy",
-    to: "/dashboard/citas",
-    icon: (
-      <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
-        <rect x="1" y="3" width="15" height="13" rx="1" stroke="currentColor" strokeWidth="1.5" />
-        <path d="M5 1v4M12 1v4M1 7h15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      </svg>
-    ),
-  },
 ];
 
-export default function DashboardShell() {
-  const { logout } = useAuth();
+export default function PartnerShell() {
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   return (
@@ -69,16 +38,25 @@ export default function DashboardShell() {
         <img
           src={`${import.meta.env.BASE_URL}images/logo.png`}
           alt="OrthoRad"
-          className="brightness-0 invert mb-7"
+          className="brightness-0 invert mb-4"
           style={{ width: 204, height: 86, objectFit: "contain" }}
         />
+
+        <div className="mb-6 px-2">
+          <p className="text-alternative text-[10px] font-montserrat font-bold uppercase tracking-widest mb-1">
+            Clínica asociada
+          </p>
+          <p className="text-white font-montserrat font-bold text-[14px] leading-tight">
+            {user?.partner?.name}
+          </p>
+        </div>
 
         <nav className="flex flex-col gap-3 flex-1">
           {NAV_ITEMS.map(({ label, to, icon }) => (
             <NavLink
               key={label}
               to={to}
-              end={to === "/dashboard"}
+              end={to === "/socios"}
               className={({ isActive }) =>
                 `flex items-center gap-3 rounded-[10px] font-semibold text-[13px] leading-5 transition-colors ${
                   isActive
@@ -96,24 +74,11 @@ export default function DashboardShell() {
 
         <div className="flex flex-col gap-3 mt-6">
           <div className="border-t border-alternative/30" />
-          <NavLink
-            to="/dashboard/configuracion"
-            className="flex items-center gap-3 text-alternative hover:bg-white/10 hover:text-white rounded-[10px] font-semibold text-[13px] transition-colors"
-            style={{ padding: "10px 14px" }}
-          >
-            <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
-              <circle cx="8.5" cy="8.5" r="2.5" stroke="currentColor" strokeWidth="1.5" />
-              <path
-                d="M8.5 1v2M8.5 14v2M1 8.5h2M14 8.5h2M3.4 3.4l1.4 1.4M12.2 12.2l1.4 1.4M3.4 13.6l1.4-1.4M12.2 4.8l1.4-1.4"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
-            </svg>
-            Configuración
-          </NavLink>
+          <p className="text-alternative/70 text-[11px] px-2 leading-snug">
+            Acceso de solo lectura a los resultados de tus pacientes referidos.
+          </p>
           <button
-            onClick={() => { logout(); navigate("/"); }}
+            onClick={() => { logout(); navigate("/portal-socios"); }}
             className="flex items-center gap-3 text-alternative hover:bg-white/10 hover:text-white rounded-[10px] font-semibold text-[13px] transition-colors w-full text-left"
             style={{ padding: "10px 14px" }}
           >

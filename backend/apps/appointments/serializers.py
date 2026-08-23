@@ -41,6 +41,9 @@ class ReportSerializer(serializers.ModelSerializer):
 
 class AppointmentSerializer(serializers.ModelSerializer):
     service_name = serializers.CharField(source="service.name", read_only=True)
+    referring_partner_name = serializers.CharField(
+        source="referring_partner.name", read_only=True, default=None
+    )
     report = serializers.SerializerMethodField()
 
     def get_report(self, obj):
@@ -48,6 +51,20 @@ class AppointmentSerializer(serializers.ModelSerializer):
             return ReportSerializer(obj.report).data
         except Report.DoesNotExist:
             return None
+
+    def validate_referring_partner(self, value):
+        """Only clinic staff may attach a referring partner (public booking
+        must not be able to tag appointments onto a partner clinic)."""
+        request = self.context.get("request")
+        if value is not None and (
+            request is None
+            or not request.user.is_authenticated
+            or not request.user.is_staff
+        ):
+            raise serializers.ValidationError(
+                "Solo el personal puede asignar una clínica referente."
+            )
+        return value
 
     class Meta:
         model = Appointment
@@ -58,6 +75,8 @@ class AppointmentSerializer(serializers.ModelSerializer):
             "patient_phone",
             "service",
             "service_name",
+            "referring_partner",
+            "referring_partner_name",
             "scheduled_at",
             "notes",
             "room",

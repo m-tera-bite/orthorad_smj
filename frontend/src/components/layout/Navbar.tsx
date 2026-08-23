@@ -48,6 +48,12 @@ export default function Navbar() {
               Resultados Online
             </Link>
             <Link
+              to="/portal-socios"
+              className="bg-action-dark text-background-alt text-xs font-medium px-[10px] py-[5px] rounded-[5px] hover:bg-action transition-colors"
+            >
+              Clínicas Asociadas
+            </Link>
+            <Link
               to="/agenda"
               className="bg-background text-primary text-xs font-medium px-[10px] py-[5px] rounded-[5px] hover:bg-alternative transition-colors"
             >
@@ -99,6 +105,13 @@ export default function Navbar() {
                 className="bg-primary text-white px-4 py-2 rounded-[5px] hover:bg-secondary transition-colors font-medium"
               >
                 Dashboard
+              </Link>
+            ) : user.partner ? (
+              <Link
+                to="/socios"
+                className="bg-primary text-white px-4 py-2 rounded-[5px] hover:bg-secondary transition-colors font-medium"
+              >
+                Portal Socios
               </Link>
             ) : (
               <Link to="/portal-cliente" className="text-text hover:text-secondary transition-colors">
