@@ -7,6 +7,9 @@ export default defineConfig(({ command }) => ({
   // built index.html must reference them at /static/react/... . The
   // standalone dev server (npm run dev) still serves from "/".
   base: command === "build" ? "/static/react/" : "/",
+  // Load env files (.env) from the repo root instead of frontend/.
+  // Only VITE_-prefixed variables are exposed to client code.
+  envDir: "../",
   plugins: [react()],
   resolve: {
     alias: {
