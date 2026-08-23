@@ -6,6 +6,11 @@ from datetime import timedelta
 DEBUG = False
 ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="").split(",")
 
+# When set, any request whose Host header doesn't match this gets a 301
+# to it (see apps.core.middleware.CanonicalHostRedirectMiddleware) — used
+# to send the raw herokuapp.com hostname to the branded domain.
+CANONICAL_HOST = config("CANONICAL_HOST", default="")
+
 # Heroku's router terminates TLS and forwards plain HTTP to the dyno;
 # without this, request.is_secure() is always False, which breaks CSRF
 # checks (e.g. /admin login) and cookie security below.
