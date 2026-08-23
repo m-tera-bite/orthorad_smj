@@ -6,6 +6,13 @@ from datetime import timedelta
 DEBUG = False
 ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="").split(",")
 
+# Heroku's router terminates TLS and forwards plain HTTP to the dyno;
+# without this, request.is_secure() is always False, which breaks CSRF
+# checks (e.g. /admin login) and cookie security below.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+
 DATABASES = {
     "default": dj_database_url.config(env="DATABASE_URL")
 }

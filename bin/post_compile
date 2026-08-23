@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Runs after the Python buildpack installs dependencies. The Node
+# buildpack (which builds the React app into backend/static/react) must
+# run before this — see buildpack order in the deploy notes.
+set -e
+
+cd backend
+python manage.py collectstatic --noinput
