@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from django.db.models import Count, Max
+from django.db.models import Count, Max, Min
 from django.utils import timezone
 from django.utils.timezone import localdate
 from rest_framework import viewsets, permissions
@@ -10,7 +10,6 @@ from rest_framework.views import APIView
 
 from apps.audit.models import AuditLog
 from apps.audit.services import log_action
-from apps.portal.models import PatientProfile
 
 from .models import Appointment, Report, ReportFile, Service
 from .serializers import AppointmentSerializer, ReportFileSerializer, ReportSerializer, ServiceSerializer
@@ -313,9 +312,16 @@ class DashboardSummaryView(APIView):
             appointment_id__in=today_ids, uploaded_at__isnull=False
         ).count()
 
-        new_patients = PatientProfile.objects.filter(
-            created_at__year=today.year, created_at__month=today.month
-        ).count()
+        # A patient is "new this month" if their earliest surviving
+        # appointment (soft-deleted ones are excluded by the default
+        # manager) was created this month — mirrors the patient list on the
+        # Pacientes page, which is aggregated from Appointment the same way.
+        new_patients = (
+            Appointment.objects.values("patient_email")
+            .annotate(first_seen=Min("created_at"))
+            .filter(first_seen__year=today.year, first_seen__month=today.month)
+            .count()
+        )
 
         # Weekly studies — Mon → today's weekday
         week_start = today - timedelta(days=today.weekday())
@@ -481,8 +487,13 @@ class ReportFileDeleteView(APIView):
         rf.soft_delete(request.user)
 
         if not report.files.exists():
+            # emitted_at is only ever set alongside uploaded_at (see
+            # ReportUploadView), so once the last file is gone the report is
+            # no longer "emitted" either — otherwise dashboard counts like
+            # reports_emitted stay inflated after a delete.
             report.uploaded_at = None
-            report.save(update_fields=["uploaded_at"])
+            report.emitted_at = None
+            report.save(update_fields=["uploaded_at", "emitted_at"])
 
         appointment = report.appointment
         log_action(

@@ -121,6 +121,19 @@ class SoftDeleteAndAuditTests(APITestCase):
         self.assertIsNotNone(entry)
         self.assertEqual(len(entry.details["citas_eliminadas"]), 2)
 
+    def test_deleted_patient_no_longer_counts_as_new_this_month(self):
+        # Both patients' appointments were created "now" (this month).
+        _make_appointment()
+        _make_appointment(patient_email="otra@example.com", patient_name="Otra")
+
+        res = self.client.get("/api/dashboard/summary/")
+        self.assertEqual(res.json()["stats"]["new_patients_month"], 2)
+
+        self.client.delete("/api/appointments/patients/?email=juan@example.com")
+
+        res = self.client.get("/api/dashboard/summary/")
+        self.assertEqual(res.json()["stats"]["new_patients_month"], 1)
+
     # ------------------------------------------------------------------
     # Partners
     # ------------------------------------------------------------------
@@ -159,7 +172,8 @@ class SoftDeleteAndAuditTests(APITestCase):
 
     def test_delete_report_file_soft_deletes_and_logs(self):
         appt = _make_appointment()
-        report = Report.objects.create(appointment=appt, uploaded_at=timezone.now())
+        now = timezone.now()
+        report = Report.objects.create(appointment=appt, uploaded_at=now, emitted_at=now)
         rf = ReportFile.objects.create(report=report, original_name="estudio.pdf")
 
         res = self.client.delete(f"/api/appointments/{appt.id}/report/files/{rf.id}/")
@@ -169,6 +183,10 @@ class SoftDeleteAndAuditTests(APITestCase):
         self.assertIsNotNone(ReportFile.all_objects.get(pk=rf.id).deleted_at)
         report.refresh_from_db()
         self.assertIsNone(report.uploaded_at)
+        # emitted_at is only ever set alongside uploaded_at, so removing the
+        # last file must clear both — otherwise dashboard counts like
+        # reports_emitted stay inflated after the result is deleted.
+        self.assertIsNone(report.emitted_at)
 
         entry = AuditLog.objects.filter(
             action=AuditLog.Action.DELETE, object_type="report_file"
