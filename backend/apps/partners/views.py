@@ -10,6 +10,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.appointments.models import Appointment
+from apps.audit.models import AuditLog
+from apps.audit.services import log_action
 
 from .models import Partner, PartnerUser
 from .permissions import IsPartnerUser, IsStaff, get_partner_for
@@ -19,6 +21,20 @@ from .serializers import (
     PartnerUserSerializer,
 )
 from .supabase_admin import create_supabase_user
+
+_PARTNER_TRACKED_FIELDS = ["name", "contact_name", "email", "phone", "is_active"]
+
+
+def _partner_snapshot(partner):
+    return {
+        "id": partner.id,
+        "nombre": partner.name,
+        "contacto": partner.contact_name,
+        "correo": partner.email,
+        "telefono": partner.phone,
+        "activa": partner.is_active,
+        "accesos": [link.user.email for link in partner.users.select_related("user")],
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -30,12 +46,106 @@ class PartnerViewSet(viewsets.ModelViewSet):
     serializer_class = PartnerSerializer
     permission_classes = [IsStaff]
 
+    # ------------------------------------------------------------------
+    # Auditing hooks
+    # ------------------------------------------------------------------
+
+    def list(self, request, *args, **kwargs):
+        response = super().list(request, *args, **kwargs)
+        log_action(
+            request,
+            AuditLog.Action.VIEW,
+            object_type="partner",
+            description="Consultó el listado de clínicas asociadas",
+            details={"resultados": len(response.data)},
+        )
+        return response
+
+    def retrieve(self, request, *args, **kwargs):
+        response = super().retrieve(request, *args, **kwargs)
+        log_action(
+            request,
+            AuditLog.Action.VIEW,
+            object_type="partner",
+            object_id=kwargs.get("pk", ""),
+            description=f"Consultó la clínica asociada #{kwargs.get('pk', '')}",
+        )
+        return response
+
+    def perform_create(self, serializer):
+        partner = serializer.save()
+        log_action(
+            self.request,
+            AuditLog.Action.CREATE,
+            object_type="partner",
+            object_id=partner.id,
+            description=f"Creó la clínica asociada “{partner.name}”",
+            details={"clinica": _partner_snapshot(partner)},
+        )
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+        old_values = {f: getattr(instance, f) for f in _PARTNER_TRACKED_FIELDS}
+
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        instance.refresh_from_db()
+
+        changes = {}
+        for field, old in old_values.items():
+            new = getattr(instance, field)
+            if new != old:
+                changes[field] = {"antes": old, "despues": new}
+
+        if changes:
+            log_action(
+                request,
+                AuditLog.Action.UPDATE,
+                object_type="partner",
+                object_id=instance.id,
+                description=f"Editó la clínica asociada “{instance.name}”",
+                details={"cambios": changes},
+            )
+        return Response(serializer.data)
+
+    def partial_update(self, request, *args, **kwargs):
+        kwargs["partial"] = True
+        return self.update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        partner = self.get_object()
+        snapshot = _partner_snapshot(partner)
+        # Soft delete + deactivate: the clinic disappears from the dashboard
+        # and its portal users immediately lose access, but the record (and
+        # the appointments it referred) stay in the database.
+        partner.is_active = False
+        partner.save(update_fields=["is_active"])
+        partner.soft_delete(request.user)
+        log_action(
+            request,
+            AuditLog.Action.DELETE,
+            object_type="partner",
+            object_id=partner.id,
+            description=f"Eliminó la clínica asociada “{partner.name}”",
+            details={"clinica_eliminada": snapshot},
+        )
+        return Response(status=204)
+
     @action(detail=True, methods=["get", "post"], url_path="users")
     def users(self, request, pk=None):
         partner = self.get_object()
 
         if request.method == "GET":
             qs = partner.users.select_related("user").order_by("user__email")
+            log_action(
+                request,
+                AuditLog.Action.VIEW,
+                object_type="partner_user",
+                object_id=partner.id,
+                description=f"Consultó los accesos de la clínica “{partner.name}”",
+            )
             return Response(PartnerUserSerializer(qs, many=True).data)
 
         # POST — link (and provision) a partner portal user by email
@@ -69,6 +179,15 @@ class PartnerViewSet(viewsets.ModelViewSet):
         password = (request.data.get("password") or "").strip() or secrets.token_urlsafe(9)
         supabase_created, supabase_message = create_supabase_user(email, password)
 
+        log_action(
+            request,
+            AuditLog.Action.CREATE,
+            object_type="partner_user",
+            object_id=link.id,
+            description=f"Otorgó acceso al portal de “{partner.name}” a {email}",
+            details={"correo": email, "clinica": partner.name},
+        )
+
         payload = PartnerUserSerializer(link).data
         payload["supabase_created"] = supabase_created
         payload["supabase_message"] = supabase_message
@@ -84,7 +203,16 @@ class PartnerViewSet(viewsets.ModelViewSet):
             link = partner.users.get(pk=link_id)
         except PartnerUser.DoesNotExist:
             return Response({"detail": "Usuario no encontrado."}, status=404)
+        removed_email = link.user.email
         link.delete()
+        log_action(
+            request,
+            AuditLog.Action.DELETE,
+            object_type="partner_user",
+            object_id=link_id,
+            description=f"Quitó el acceso al portal de “{partner.name}” a {removed_email}",
+            details={"correo": removed_email, "clinica": partner.name},
+        )
         return Response(status=204)
 
 
@@ -125,7 +253,16 @@ class PartnerPatientsView(APIView):
             )
             .order_by("patient_name")
         )
-        return Response(list(rows))
+        rows = list(rows)
+        log_action(
+            request,
+            AuditLog.Action.VIEW,
+            object_type="partner_portal",
+            object_id=partner.id,
+            description=f"La clínica “{partner.name}” consultó sus pacientes referidos",
+            details={"resultados": len(rows)},
+        )
+        return Response(rows)
 
 
 class PartnerAppointmentsView(APIView):
@@ -147,4 +284,15 @@ class PartnerAppointmentsView(APIView):
         if patient_email:
             qs = qs.filter(patient_email__iexact=patient_email)
         serializer = PartnerAppointmentSerializer(qs, many=True, context={"request": request})
+        details = {"resultados": len(serializer.data)}
+        if patient_email:
+            details["paciente"] = patient_email
+        log_action(
+            request,
+            AuditLog.Action.VIEW,
+            object_type="partner_portal",
+            object_id=partner.id,
+            description=f"La clínica “{partner.name}” consultó resultados de sus referidos",
+            details=details,
+        )
         return Response(serializer.data)

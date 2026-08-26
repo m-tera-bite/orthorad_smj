@@ -53,6 +53,16 @@ const NAV_ITEMS = [
       </svg>
     ),
   },
+  {
+    label: "Historial",
+    to: "/dashboard/historial",
+    icon: (
+      <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
+        <circle cx="8.5" cy="8.5" r="7" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M8.5 4.5v4l2.8 2.8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
 ];
 
 export default function DashboardShell() {

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../api/client";
 import NewAppointmentModal from "../../components/dashboard/NewAppointmentModal";
+import ConfirmDialog from "../../components/ui/ConfirmDialog";
 
 interface Patient {
   patient_name: string;
@@ -26,12 +27,22 @@ export default function Pacientes() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [showNew, setShowNew] = useState(false);
+  const [deleting, setDeleting] = useState<Patient | null>(null);
 
   function load() {
     api.get("/appointments/patients/").then(({ data }) => setPatients(data)).finally(() => setLoading(false));
   }
 
   useEffect(() => { load(); }, []);
+
+  async function handleDelete(patient: Patient) {
+    await api.delete(
+      `/appointments/patients/?email=${encodeURIComponent(patient.patient_email)}`
+    );
+    setPatients((prev) =>
+      prev.filter((p) => p.patient_email !== patient.patient_email)
+    );
+  }
 
   const filtered = patients.filter(
     (p) =>
@@ -130,12 +141,29 @@ export default function Pacientes() {
                       Última: {formatDate(p.last_appointment)}
                     </span>
                   </div>
-                  <button
-                    onClick={() => navigate(`/dashboard/citas?email=${encodeURIComponent(p.patient_email)}`)}
-                    className="w-full mt-1 border border-primary text-primary text-[12px] font-quicksand font-semibold rounded-[10px] py-2 hover:bg-primary hover:text-white transition-colors"
-                  >
-                    Ver Citas
-                  </button>
+                  <div className="flex gap-2 mt-1">
+                    <button
+                      onClick={() => navigate(`/dashboard/citas?email=${encodeURIComponent(p.patient_email)}`)}
+                      className="flex-1 border border-primary text-primary text-[12px] font-quicksand font-semibold rounded-[10px] py-2 hover:bg-primary hover:text-white transition-colors"
+                    >
+                      Ver Citas
+                    </button>
+                    <button
+                      onClick={() => setDeleting(p)}
+                      title="Eliminar paciente"
+                      className="flex-shrink-0 border border-red-500 text-red-500 rounded-[10px] px-3 hover:bg-red-500 hover:text-white transition-colors"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 15 15" fill="none">
+                        <path
+                          d="M2 4h11M5.5 4V2.5h4V4M3.5 4l.7 8.5a1 1 0 001 .9h4.6a1 1 0 001-.9L11.5 4M6 6.5v4M9 6.5v4"
+                          stroke="currentColor"
+                          strokeWidth="1.3"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -147,6 +175,27 @@ export default function Pacientes() {
         <NewAppointmentModal
           onClose={() => setShowNew(false)}
           onCreated={() => { load(); }}
+        />
+      )}
+
+      {deleting && (
+        <ConfirmDialog
+          title="Eliminar Paciente"
+          message={
+            <>
+              ¿Eliminar al paciente <strong>{deleting.patient_name}</strong> (
+              {deleting.patient_email})? Se eliminarán sus{" "}
+              <strong>
+                {deleting.appointment_count}{" "}
+                {deleting.appointment_count === 1 ? "cita" : "citas"}
+              </strong>{" "}
+              junto con sus resultados, y dejarán de mostrarse en el sistema — incluido
+              el portal de clínicas asociadas.
+            </>
+          }
+          confirmLabel="Eliminar Paciente"
+          onConfirm={() => handleDelete(deleting)}
+          onClose={() => setDeleting(null)}
         />
       )}
     </div>

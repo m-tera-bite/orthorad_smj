@@ -1,8 +1,10 @@
 from django.db import models
 from django.contrib.auth.models import User
 
+from apps.core.models import SoftDeleteModel
 
-class Partner(models.Model):
+
+class Partner(SoftDeleteModel):
     """A partner clinic that refers patients and gets read-only access
     to the results of the appointments it referred."""
 
@@ -15,6 +17,7 @@ class Partner(models.Model):
 
     class Meta:
         ordering = ["name"]
+        base_manager_name = "all_objects"
 
     def __str__(self):
         return self.name

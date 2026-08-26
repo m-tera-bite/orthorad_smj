@@ -8,6 +8,7 @@ urlpatterns = [
     path("api/appointments/", include("apps.appointments.urls")),
     path("api/partners/", include("apps.partners.urls")),
     path("api/portal/", include("apps.portal.urls.portal")),
+    path("api/audit/", include("apps.audit.urls")),
     path("api/dashboard/summary/", DashboardSummaryView.as_view(), name="dashboard-summary"),
     # Catch-all: serve the React SPA for any non-API route
     re_path(r"^(?!api/).*$", spa_view),

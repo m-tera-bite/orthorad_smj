@@ -52,6 +52,20 @@ class AppointmentSerializer(serializers.ModelSerializer):
         except Report.DoesNotExist:
             return None
 
+    def validate_status(self, value):
+        """Only clinic staff may set or change the status (public booking
+        always starts as 'pending')."""
+        request = self.context.get("request")
+        if (
+            request is None
+            or not request.user.is_authenticated
+            or not request.user.is_staff
+        ):
+            raise serializers.ValidationError(
+                "Solo el personal puede cambiar el estado de una cita."
+            )
+        return value
+
     def validate_referring_partner(self, value):
         """Only clinic staff may attach a referring partner (public booking
         must not be able to tag appointments onto a partner clinic)."""
@@ -84,4 +98,4 @@ class AppointmentSerializer(serializers.ModelSerializer):
             "created_at",
             "report",
         ]
-        read_only_fields = ["status", "created_at"]
+        read_only_fields = ["created_at"]

@@ -1,5 +1,7 @@
 from django.db import models
 
+from apps.core.models import SoftDeleteModel
+
 
 def _report_file_path(instance, filename):
     return f"reports/{instance.report.appointment_id}/{filename}"
@@ -33,7 +35,7 @@ class Service(models.Model):
         return self.name
 
 
-class Appointment(models.Model):
+class Appointment(SoftDeleteModel):
     class Status(models.TextChoices):
         PENDING = "pending", "Pendiente"
         CONFIRMED = "confirmed", "Confirmado"
@@ -62,6 +64,7 @@ class Appointment(models.Model):
 
     class Meta:
         ordering = ["scheduled_at"]
+        base_manager_name = "all_objects"
 
     def __str__(self):
         return f"{self.patient_name} — {self.service.name} @ {self.scheduled_at:%Y-%m-%d %H:%M}"
@@ -79,11 +82,14 @@ class Report(models.Model):
         return f"Reporte — {self.appointment}"
 
 
-class ReportFile(models.Model):
+class ReportFile(SoftDeleteModel):
     report = models.ForeignKey(Report, on_delete=models.CASCADE, related_name="files")
     file = models.FileField(upload_to=_report_file_path)
     original_name = models.CharField(max_length=255, blank=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        base_manager_name = "all_objects"
 
     def __str__(self):
         return self.original_name or self.file.name

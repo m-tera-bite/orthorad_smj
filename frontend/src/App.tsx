@@ -17,6 +17,7 @@ import Pacientes from "./pages/dashboard/Pacientes";
 import Reportes from "./pages/dashboard/Reportes";
 import Citas from "./pages/dashboard/Citas";
 import Socios from "./pages/dashboard/Socios";
+import Historial from "./pages/dashboard/Historial";
 import SociosPacientes from "./pages/socios/Pacientes";
 import SociosResultados from "./pages/socios/Resultados";
 
@@ -49,6 +50,7 @@ export default function App() {
           <Route path="reportes" element={<Reportes />} />
           <Route path="citas" element={<Citas />} />
           <Route path="socios" element={<Socios />} />
+          <Route path="historial" element={<Historial />} />
         </Route>
 
         {/* Partner-clinic portal — full-screen, read-only, nested routes */}

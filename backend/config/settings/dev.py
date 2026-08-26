@@ -14,7 +14,7 @@ DATABASES = {
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",  # Vite dev server
     "http://127.0.0.1:5173",
-    "orthorad-smj-prod-9ebfb0f7fb68.herokuapp.com",
+    "https://orthorad-smj-prod-9ebfb0f7fb68.herokuapp.com",
 ]
 
 CORS_ALLOW_CREDENTIALS = True

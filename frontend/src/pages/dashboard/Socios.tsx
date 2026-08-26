@@ -1,5 +1,6 @@
 import { useEffect, useState, FormEvent } from "react";
 import api from "../../api/client";
+import ConfirmDialog from "../../components/ui/ConfirmDialog";
 
 interface Partner {
   id: number;
@@ -294,12 +295,18 @@ export default function Socios() {
   const [editing, setEditing] = useState<Partner | null>(null);
   const [showNew, setShowNew] = useState(false);
   const [usersFor, setUsersFor] = useState<Partner | null>(null);
+  const [deleting, setDeleting] = useState<Partner | null>(null);
 
   function load() {
     api.get("/partners/").then(({ data }) => setPartners(data)).finally(() => setLoading(false));
   }
 
   useEffect(() => { load(); }, []);
+
+  async function handleDelete(partner: Partner) {
+    await api.delete(`/partners/${partner.id}/`);
+    setPartners((prev) => prev.filter((p) => p.id !== partner.id));
+  }
 
   const filtered = partners.filter((p) =>
     p.name.toLowerCase().includes(search.toLowerCase())
@@ -397,6 +404,21 @@ export default function Socios() {
                     >
                       Accesos
                     </button>
+                    <button
+                      onClick={() => setDeleting(p)}
+                      title="Eliminar clínica"
+                      className="flex-shrink-0 border border-red-500 text-red-500 rounded-[10px] px-3 hover:bg-red-500 hover:text-white transition-colors"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 15 15" fill="none">
+                        <path
+                          d="M2 4h11M5.5 4V2.5h4V4M3.5 4l.7 8.5a1 1 0 001 .9h4.6a1 1 0 001-.9L11.5 4M6 6.5v4M9 6.5v4"
+                          stroke="currentColor"
+                          strokeWidth="1.3"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -414,6 +436,23 @@ export default function Socios() {
       )}
       {usersFor && (
         <UsersModal partner={usersFor} onClose={() => setUsersFor(null)} onChanged={load} />
+      )}
+
+      {deleting && (
+        <ConfirmDialog
+          title="Eliminar Clínica Asociada"
+          message={
+            <>
+              ¿Eliminar la clínica <strong>{deleting.name}</strong>? Sus{" "}
+              {deleting.users_count}{" "}
+              {deleting.users_count === 1 ? "usuario" : "usuarios"} del portal
+              perderán el acceso de inmediato. Las citas que refirió se conservan.
+            </>
+          }
+          confirmLabel="Eliminar Clínica"
+          onConfirm={() => handleDelete(deleting)}
+          onClose={() => setDeleting(null)}
+        />
       )}
     </div>
   );

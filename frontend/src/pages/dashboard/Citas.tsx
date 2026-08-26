@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import api from "../../api/client";
 import NewAppointmentModal from "../../components/dashboard/NewAppointmentModal";
+import ConfirmDialog from "../../components/ui/ConfirmDialog";
 
 interface Appointment {
   id: number;
@@ -49,6 +50,7 @@ export default function Citas() {
   const [statusFilter, setStatusFilter] = useState("");
   const [updatingId, setUpdatingId] = useState<number | null>(null);
   const [showNew, setShowNew] = useState(false);
+  const [deleting, setDeleting] = useState<Appointment | null>(null);
 
   function buildUrl() {
     const params = new URLSearchParams();
@@ -78,6 +80,11 @@ export default function Citas() {
     } finally {
       setUpdatingId(null);
     }
+  }
+
+  async function handleDelete(appt: Appointment) {
+    await api.delete(`/appointments/${appt.id}/`);
+    setAppointments((prev) => prev.filter((a) => a.id !== appt.id));
   }
 
   const DATE_FILTERS: { key: DateFilter; label: string }[] = [
@@ -164,7 +171,7 @@ export default function Citas() {
               <table className="w-full text-sm font-quicksand">
                 <thead>
                   <tr style={{ backgroundColor: "#f5ede3" }}>
-                    {["Fecha", "Hora", "Paciente", "Servicio", "Sala", "Estado"].map((h) => (
+                    {["Fecha", "Hora", "Paciente", "Servicio", "Sala", "Estado", ""].map((h) => (
                       <th key={h} className="text-left text-primary font-montserrat font-bold text-[12px] px-5 py-3">
                         {h}
                       </th>
@@ -210,6 +217,23 @@ export default function Citas() {
                           ))}
                         </select>
                       </td>
+                      <td className="px-3 py-3">
+                        <button
+                          onClick={() => setDeleting(a)}
+                          title="Eliminar cita"
+                          className="text-red-500 hover:text-red-700 transition-colors p-1"
+                        >
+                          <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                            <path
+                              d="M2 4h11M5.5 4V2.5h4V4M3.5 4l.7 8.5a1 1 0 001 .9h4.6a1 1 0 001-.9L11.5 4M6 6.5v4M9 6.5v4"
+                              stroke="currentColor"
+                              strokeWidth="1.3"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -224,6 +248,23 @@ export default function Citas() {
           onClose={() => setShowNew(false)}
           onCreated={() => load()}
           defaultEmail={emailFilter}
+        />
+      )}
+
+      {deleting && (
+        <ConfirmDialog
+          title="Eliminar Cita"
+          message={
+            <>
+              ¿Eliminar la cita de <strong>{deleting.patient_name}</strong> (
+              {deleting.service_name}, {formatDate(deleting.scheduled_at)}{" "}
+              {formatTime(deleting.scheduled_at)})? La cita y sus resultados dejarán
+              de mostrarse en el sistema.
+            </>
+          }
+          confirmLabel="Eliminar Cita"
+          onConfirm={() => handleDelete(deleting)}
+          onClose={() => setDeleting(null)}
         />
       )}
     </div>
