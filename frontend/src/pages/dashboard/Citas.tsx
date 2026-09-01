@@ -8,9 +8,13 @@ interface Appointment {
   id: number;
   patient_name: string;
   patient_email: string;
+  patient_phone: string;
+  service: number;
   service_name: string;
+  referring_partner: number | null;
   scheduled_at: string;
   room: string;
+  notes: string;
   status: string;
 }
 
@@ -50,6 +54,7 @@ export default function Citas() {
   const [statusFilter, setStatusFilter] = useState("");
   const [updatingId, setUpdatingId] = useState<number | null>(null);
   const [showNew, setShowNew] = useState(false);
+  const [editing, setEditing] = useState<Appointment | null>(null);
   const [deleting, setDeleting] = useState<Appointment | null>(null);
 
   function buildUrl() {
@@ -218,21 +223,38 @@ export default function Citas() {
                         </select>
                       </td>
                       <td className="px-3 py-3">
-                        <button
-                          onClick={() => setDeleting(a)}
-                          title="Eliminar cita"
-                          className="text-red-500 hover:text-red-700 transition-colors p-1"
-                        >
-                          <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-                            <path
-                              d="M2 4h11M5.5 4V2.5h4V4M3.5 4l.7 8.5a1 1 0 001 .9h4.6a1 1 0 001-.9L11.5 4M6 6.5v4M9 6.5v4"
-                              stroke="currentColor"
-                              strokeWidth="1.3"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => setEditing(a)}
+                            title="Editar cita"
+                            className="text-secondary hover:text-primary transition-colors p-1"
+                          >
+                            <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                              <path
+                                d="M9.5 2l3 3-7 7-3.5.5.5-3.5 7-7z"
+                                stroke="currentColor"
+                                strokeWidth="1.3"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => setDeleting(a)}
+                            title="Eliminar cita"
+                            className="text-red-500 hover:text-red-700 transition-colors p-1"
+                          >
+                            <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                              <path
+                                d="M2 4h11M5.5 4V2.5h4V4M3.5 4l.7 8.5a1 1 0 001 .9h4.6a1 1 0 001-.9L11.5 4M6 6.5v4M9 6.5v4"
+                                stroke="currentColor"
+                                strokeWidth="1.3"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -246,8 +268,16 @@ export default function Citas() {
       {showNew && (
         <NewAppointmentModal
           onClose={() => setShowNew(false)}
-          onCreated={() => load()}
+          onSaved={() => load()}
           defaultEmail={emailFilter}
+        />
+      )}
+
+      {editing && (
+        <NewAppointmentModal
+          appointment={editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => load()}
         />
       )}
 

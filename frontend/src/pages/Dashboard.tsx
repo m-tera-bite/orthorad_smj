@@ -622,7 +622,7 @@ export default function Dashboard() {
       {showNew && (
         <NewAppointmentModal
           onClose={() => setShowNew(false)}
-          onCreated={() => {
+          onSaved={() => {
             api.get("/dashboard/summary/").then(({ data }) => setSummary(data));
           }}
         />

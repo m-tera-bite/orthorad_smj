@@ -29,6 +29,7 @@ export default function UploadModal({ appointments, onClose, onUploaded, onFileD
     appointments[0]?.existingFiles ?? []
   );
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [notifyPatient, setNotifyPatient] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
@@ -64,6 +65,7 @@ export default function UploadModal({ appointments, onClose, onUploaded, onFileD
     try {
       const form = new FormData();
       for (const f of pendingFiles) form.append("files", f);
+      form.append("notify_patient", String(notifyPatient));
       const { data } = await api.post(
         `/appointments/${selectedId}/report/upload/`,
         form,
@@ -244,6 +246,20 @@ export default function UploadModal({ appointments, onClose, onUploaded, onFileD
               </ul>
             )}
           </div>
+
+          {hasPending && (
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={notifyPatient}
+                onChange={(e) => setNotifyPatient(e.target.checked)}
+                className="accent-action-dark"
+              />
+              <span className="text-text font-quicksand text-sm">
+                También notificar al paciente por correo
+              </span>
+            </label>
+          )}
 
           {error && <p className="text-red-600 text-sm font-quicksand">{error}</p>}
 

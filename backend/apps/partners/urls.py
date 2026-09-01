@@ -4,6 +4,8 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     PartnerAppointmentsView,
     PartnerMeView,
+    PartnerNotificationMarkReadView,
+    PartnerNotificationsView,
     PartnerPatientsView,
     PartnerViewSet,
 )
@@ -17,5 +19,11 @@ urlpatterns = [
     path("portal/me/", PartnerMeView.as_view(), name="partner-portal-me"),
     path("portal/patients/", PartnerPatientsView.as_view(), name="partner-portal-patients"),
     path("portal/appointments/", PartnerAppointmentsView.as_view(), name="partner-portal-appointments"),
+    path("portal/notifications/", PartnerNotificationsView.as_view(), name="partner-portal-notifications"),
+    path(
+        "portal/notifications/<int:pk>/read/",
+        PartnerNotificationMarkReadView.as_view(),
+        name="partner-portal-notification-read",
+    ),
     path("", include(router.urls)),
 ]

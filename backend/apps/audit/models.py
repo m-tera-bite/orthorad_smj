@@ -17,6 +17,7 @@ class AuditLog(models.Model):
         UPDATE = "update", "Edición"
         DELETE = "delete", "Eliminación"
         UPLOAD = "upload", "Carga de archivo"
+        EMAIL = "email", "Correo"
 
     class Role(models.TextChoices):
         STAFF = "staff", "Personal"

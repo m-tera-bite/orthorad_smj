@@ -30,6 +30,7 @@ const ACTION_OPTIONS = [
   { value: "update", label: "Ediciones" },
   { value: "delete", label: "Eliminaciones" },
   { value: "upload", label: "Cargas de archivos" },
+  { value: "email", label: "Correos enviados" },
   { value: "view", label: "Consultas" },
 ];
 
@@ -40,6 +41,7 @@ const OBJECT_OPTIONS = [
   { value: "partner", label: "Clínicas asociadas" },
   { value: "partner_user", label: "Accesos de clínicas" },
   { value: "report_file", label: "Archivos de resultados" },
+  { value: "report_email", label: "Correos de resultados" },
   { value: "partner_portal", label: "Portal de socios" },
   { value: "dashboard", label: "Dashboard" },
 ];
@@ -49,6 +51,7 @@ const ACTION_BG: Record<string, string> = {
   create: "bg-[#3f6e7a]",
   update: "bg-secondary",
   upload: "bg-primary",
+  email: "bg-[#4f8a7b]",
   view: "bg-alternative",
 };
 
@@ -58,6 +61,7 @@ const OBJECT_LABELS: Record<string, string> = {
   partner: "Clínica asociada",
   partner_user: "Acceso de clínica",
   report_file: "Archivo de resultados",
+  report_email: "Correo de resultados",
   partner_portal: "Portal de socios",
   dashboard: "Dashboard",
 };

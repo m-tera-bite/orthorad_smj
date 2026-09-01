@@ -4,6 +4,8 @@ from django.contrib.auth.models import User
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
 from django.db.models import Count, Max
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -13,9 +15,10 @@ from apps.appointments.models import Appointment
 from apps.audit.models import AuditLog
 from apps.audit.services import log_action
 
-from .models import Partner, PartnerUser
-from .permissions import IsPartnerUser, IsStaff, get_partner_for
+from .models import Notification, Partner, PartnerUser
+from .permissions import IsPartnerUser, IsPartnerUserReadWrite, IsStaff, get_partner_for
 from .serializers import (
+    NotificationSerializer,
     PartnerAppointmentSerializer,
     PartnerSerializer,
     PartnerUserSerializer,
@@ -296,3 +299,36 @@ class PartnerAppointmentsView(APIView):
             details=details,
         )
         return Response(serializer.data)
+
+
+class PartnerNotificationsView(APIView):
+    """Recent 'new results ready' notifications for the caller's clinic."""
+
+    permission_classes = [IsPartnerUser]
+
+    def get(self, request):
+        partner = get_partner_for(request.user)
+        qs = Notification.objects.filter(partner=partner).select_related("appointment")[:20]
+        unread_count = Notification.objects.filter(partner=partner, read_at__isnull=True).count()
+        return Response(
+            {
+                "results": NotificationSerializer(qs, many=True).data,
+                "unread_count": unread_count,
+            }
+        )
+
+
+class PartnerNotificationMarkReadView(APIView):
+    """Marks one notification as read. Scoped to the caller's own clinic —
+    a partner can never mark (or discover the existence of) another
+    clinic's notification."""
+
+    permission_classes = [IsPartnerUserReadWrite]
+
+    def post(self, request, pk):
+        partner = get_partner_for(request.user)
+        notification = get_object_or_404(Notification, pk=pk, partner=partner)
+        if notification.read_at is None:
+            notification.read_at = timezone.now()
+            notification.save(update_fields=["read_at"])
+        return Response(NotificationSerializer(notification).data)

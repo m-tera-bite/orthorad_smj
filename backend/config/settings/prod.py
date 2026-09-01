@@ -6,6 +6,8 @@ from datetime import timedelta
 DEBUG = False
 ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="").split(",")
 
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+
 # When set, any request whose Host header doesn't match this gets a 301
 # to it (see apps.core.middleware.CanonicalHostRedirectMiddleware) — used
 # to send the raw herokuapp.com hostname to the branded domain.

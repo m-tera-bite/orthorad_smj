@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import NotificationBell from "../partners/NotificationBell";
 
 const NAV_ITEMS = [
   {
@@ -35,12 +36,15 @@ export default function PartnerShell() {
         className="flex flex-col flex-shrink-0 h-full bg-primary"
         style={{ width: 249, padding: "38px 17px" }}
       >
-        <img
-          src={`${import.meta.env.BASE_URL}images/logo.png`}
-          alt="OrthoRad"
-          className="brightness-0 invert mb-4"
-          style={{ width: 204, height: 86, objectFit: "contain" }}
-        />
+        <div className="flex items-start justify-between mb-4">
+          <img
+            src={`${import.meta.env.BASE_URL}images/logo.png`}
+            alt="OrthoRad"
+            className="brightness-0 invert"
+            style={{ width: 204, height: 86, objectFit: "contain" }}
+          />
+          <NotificationBell />
+        </div>
 
         <div className="mb-6 px-2">
           <p className="text-alternative text-[10px] font-montserrat font-bold uppercase tracking-widest mb-1">

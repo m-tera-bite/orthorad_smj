@@ -89,6 +89,17 @@ SUPABASE_URL = config("SUPABASE_URL")
 # provision partner-clinic logins from the staff dashboard. Keep it secret.
 SUPABASE_SERVICE_ROLE_KEY = config("SUPABASE_SERVICE_ROLE_KEY", default="")
 
+# Outgoing email (result-ready notifications) — sent via a Gmail account
+# using an app password, not the account password.
+EMAIL_HOST = config("EMAIL_HOST", default="smtp.gmail.com")
+EMAIL_PORT = config("EMAIL_PORT", default=587, cast=int)
+EMAIL_USE_TLS = config("EMAIL_USE_TLS", default=True, cast=bool)
+EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = config("EMAIL_APP_PASSWORD", default="")
+DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default=EMAIL_HOST_USER)
+# Absolute base URL used to build links/images embedded in outgoing emails.
+SITE_URL = config("SITE_URL", default="https://orthorad-smj.com")
+
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "apps.portal.auth.SupabaseJWTAuthentication",

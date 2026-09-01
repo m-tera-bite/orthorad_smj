@@ -1,0 +1,15 @@
+{% extends "emails/result_ready_base.html" %}
+
+{% block title %}Tus resultados están disponibles — OrthoRad{% endblock %}
+
+{% block body %}
+<p style="margin:0 0 16px; color:#5C3317; font-family:Arial, Helvetica, sans-serif; font-size:18px; font-weight:bold;">
+  Hola {{ patient_name }},
+</p>
+<p style="margin:0 0 12px;">
+  Tus resultados de {{ study_type }} ya están disponibles en tu portal de OrthoRad.
+</p>
+<p style="margin:0;">
+  Ingresa a tu portal para consultarlos y descargarlos.
+</p>
+{% endblock %}

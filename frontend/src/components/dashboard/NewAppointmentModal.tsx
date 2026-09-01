@@ -19,25 +19,58 @@ interface PartnerOption {
   is_active: boolean;
 }
 
-interface Props {
-  onClose: () => void;
-  onCreated: () => void;
-  defaultEmail?: string;
+export interface EditableAppointment {
+  id: number;
+  patient_name: string;
+  patient_email: string;
+  patient_phone: string;
+  service: number | null;
+  referring_partner: number | null;
+  scheduled_at: string;
+  room: string;
+  notes: string;
 }
 
-export default function NewAppointmentModal({ onClose, onCreated, defaultEmail = "" }: Props) {
+interface Props {
+  onClose: () => void;
+  onSaved: () => void;
+  defaultEmail?: string;
+  appointment?: EditableAppointment;
+}
+
+function toDatetimeLocal(iso: string) {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+export default function NewAppointmentModal({ onClose, onSaved, defaultEmail = "", appointment }: Props) {
+  const isEdit = Boolean(appointment);
   const [services, setServices] = useState<Service[]>([]);
   const [partners, setPartners] = useState<PartnerOption[]>([]);
-  const [form, setForm] = useState({
-    patient_name: "",
-    patient_email: defaultEmail,
-    patient_phone: "",
-    service: "",
-    referring_partner: "",
-    scheduled_at: "",
-    room: "",
-    notes: "",
-  });
+  const [form, setForm] = useState(() =>
+    appointment
+      ? {
+          patient_name: appointment.patient_name,
+          patient_email: appointment.patient_email,
+          patient_phone: appointment.patient_phone,
+          service: appointment.service ? String(appointment.service) : "",
+          referring_partner: appointment.referring_partner ? String(appointment.referring_partner) : "",
+          scheduled_at: toDatetimeLocal(appointment.scheduled_at),
+          room: appointment.room,
+          notes: appointment.notes,
+        }
+      : {
+          patient_name: "",
+          patient_email: defaultEmail,
+          patient_phone: "",
+          service: "",
+          referring_partner: "",
+          scheduled_at: "",
+          room: "",
+          notes: "",
+        }
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,16 +94,21 @@ export default function NewAppointmentModal({ onClose, onCreated, defaultEmail =
     }
     setLoading(true);
     setError(null);
+    const payload = {
+      ...form,
+      service: Number(form.service),
+      referring_partner: form.referring_partner ? Number(form.referring_partner) : null,
+    };
     try {
-      await api.post("/appointments/", {
-        ...form,
-        service: Number(form.service),
-        referring_partner: form.referring_partner ? Number(form.referring_partner) : null,
-      });
-      onCreated();
+      if (isEdit && appointment) {
+        await api.patch(`/appointments/${appointment.id}/`, payload);
+      } else {
+        await api.post("/appointments/", payload);
+      }
+      onSaved();
       onClose();
     } catch {
-      setError("No se pudo crear la cita. Verifica los datos.");
+      setError(isEdit ? "No se pudieron guardar los cambios." : "No se pudo crear la cita. Verifica los datos.");
     } finally {
       setLoading(false);
     }
@@ -97,7 +135,7 @@ export default function NewAppointmentModal({ onClose, onCreated, defaultEmail =
     >
       <div className="bg-background-alt rounded-[10px] w-full max-w-lg mx-4 overflow-hidden shadow-xl max-h-[90vh] flex flex-col">
         <div className="bg-primary px-6 py-4 flex items-center justify-between flex-shrink-0">
-          <h2 className="text-white font-montserrat font-bold text-[18px]">Nueva Cita</h2>
+          <h2 className="text-white font-montserrat font-bold text-[18px]">{isEdit ? "Editar Cita" : "Nueva Cita"}</h2>
           <button onClick={onClose} className="text-alternative hover:text-white transition-colors text-xl leading-none">×</button>
         </div>
 
@@ -259,7 +297,7 @@ export default function NewAppointmentModal({ onClose, onCreated, defaultEmail =
               disabled={loading}
               className="flex-1 bg-action-dark text-white py-2.5 rounded-[10px] font-quicksand font-semibold text-sm hover:bg-action-dark/80 transition-colors disabled:opacity-50"
             >
-              {loading ? "Guardando..." : "Crear Cita"}
+              {loading ? "Guardando..." : isEdit ? "Guardar Cambios" : "Crear Cita"}
             </button>
           </div>
         </form>

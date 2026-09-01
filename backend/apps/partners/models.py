@@ -33,3 +33,26 @@ class PartnerUser(models.Model):
 
     def __str__(self):
         return f"{self.user.email} → {self.partner.name}"
+
+
+class Notification(models.Model):
+    """One row per 'a referred patient's results are ready' event, shown as
+    the red bell indicator in the partner portal."""
+
+    partner = models.ForeignKey(Partner, on_delete=models.CASCADE, related_name="notifications")
+    appointment = models.ForeignKey(
+        "appointments.Appointment", on_delete=models.CASCADE, related_name="+"
+    )
+    message = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+    read_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    @property
+    def is_read(self):
+        return self.read_at is not None
+
+    def __str__(self):
+        return f"{self.partner.name} — {self.message}"

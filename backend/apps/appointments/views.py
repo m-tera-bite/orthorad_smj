@@ -1,5 +1,7 @@
 from datetime import timedelta
 
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.validators import validate_email
 from django.db.models import Count, Max, Min
 from django.utils import timezone
 from django.utils.timezone import localdate
@@ -8,11 +10,17 @@ from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+import logging
+
 from apps.audit.models import AuditLog
 from apps.audit.services import log_action
+from apps.partners.models import Notification
 
+from .emails import send_result_ready_emails
 from .models import Appointment, Report, ReportFile, Service
 from .serializers import AppointmentSerializer, ReportFileSerializer, ReportSerializer, ServiceSerializer
+
+logger = logging.getLogger(__name__)
 
 # Fields tracked when diffing appointment edits for the audit trail.
 _APPOINTMENT_TRACKED_FIELDS = [
@@ -236,6 +244,61 @@ class PatientsListView(APIView):
         )
         return Response(rows)
 
+    def patch(self, request):
+        """Edit a patient's contact info (email, phone) — applied across
+        every appointment recorded under their current email, since patients
+        have no identity of their own beyond the aggregated appointments."""
+        if not request.user.is_staff:
+            return Response({"detail": "Forbidden."}, status=403)
+
+        email = (request.query_params.get("email") or "").strip()
+        if not email:
+            return Response({"detail": "Falta el parámetro email."}, status=400)
+
+        new_email = (request.data.get("patient_email") or "").strip()
+        new_phone = (request.data.get("patient_phone") or "").strip()
+        if not new_email:
+            return Response({"detail": "El correo es obligatorio."}, status=400)
+        try:
+            validate_email(new_email)
+        except DjangoValidationError:
+            return Response({"detail": "Correo inválido."}, status=400)
+
+        appointments = list(Appointment.objects.filter(patient_email__iexact=email))
+        if not appointments:
+            return Response({"detail": "Paciente no encontrado."}, status=404)
+
+        patient_name = appointments[0].patient_name
+        old_email = appointments[0].patient_email
+        old_phone = appointments[0].patient_phone
+
+        Appointment.objects.filter(patient_email__iexact=email).update(
+            patient_email=new_email, patient_phone=new_phone
+        )
+
+        log_action(
+            request,
+            AuditLog.Action.UPDATE,
+            object_type="patient",
+            object_id=new_email,
+            description=f"Editó al paciente {patient_name} — correo/teléfono actualizados",
+            details={
+                "paciente": patient_name,
+                "antes": {"correo": old_email, "telefono": old_phone},
+                "despues": {"correo": new_email, "telefono": new_phone},
+                "citas_actualizadas": len(appointments),
+            },
+        )
+        return Response(
+            {
+                "patient_name": patient_name,
+                "patient_email": new_email,
+                "patient_phone": new_phone,
+                "appointment_count": len(appointments),
+                "last_appointment": _fmt(max(a.scheduled_at for a in appointments)),
+            }
+        )
+
     def delete(self, request):
         if not request.user.is_staff:
             return Response({"detail": "Forbidden."}, status=403)
@@ -429,6 +492,7 @@ class ReportUploadView(APIView):
             return Response({"detail": "No se proporcionó archivo."}, status=400)
 
         report, _ = Report.objects.get_or_create(appointment=appointment)
+        was_first_upload = report.uploaded_at is None
 
         created = []
         for f in files:
@@ -447,6 +511,45 @@ class ReportUploadView(APIView):
         if not report.emitted_at:
             report.emitted_at = timezone.now()
         report.save(update_fields=["uploaded_at", "emitted_at"])
+
+        if was_first_upload:
+            notify_patient = request.data.get("notify_patient") in ("true", "True", "1", True)
+            if appointment.referring_partner:
+                Notification.objects.create(
+                    partner=appointment.referring_partner,
+                    appointment=appointment,
+                    message=(
+                        f"Resultados de {appointment.patient_name} — "
+                        f"{appointment.service.name} disponibles"
+                    ),
+                )
+            try:
+                email_attempts = send_result_ready_emails(report, notify_patient=notify_patient)
+            except Exception:
+                logger.exception(
+                    "Failed to send result-ready email(s) for appointment %s", appointment.id
+                )
+                email_attempts = []
+
+            for attempt in email_attempts:
+                kind_label = "clínica" if attempt["kind"] == "partner" else "paciente"
+                log_action(
+                    request,
+                    AuditLog.Action.EMAIL,
+                    object_type="report_email",
+                    object_id=appointment.id,
+                    description=(
+                        f"{'Envió' if attempt['success'] else 'No se pudo enviar'} el correo de "
+                        f"resultados a la {kind_label} ({attempt['to'] or 'sin correo registrado'})"
+                        f" — cita #{appointment.id}, {appointment.patient_name}"
+                    ),
+                    details={
+                        "destinatario": attempt["to"],
+                        "tipo": attempt["kind"],
+                        "exito": attempt["success"],
+                        "error": attempt["error"],
+                    },
+                )
 
         log_action(
             request,

@@ -27,3 +27,14 @@ class IsStaff(BasePermission):
 
     def has_permission(self, request, view):
         return bool(request.user and request.user.is_authenticated and request.user.is_staff)
+
+
+class IsPartnerUserReadWrite(BasePermission):
+    """Like IsPartnerUser but also allows write methods. Used only for a
+    partner's own notification read-state — never for referred-patient
+    data, which must stay read-only via IsPartnerUser."""
+
+    message = "Solo clínicas asociadas pueden acceder."
+
+    def has_permission(self, request, view):
+        return get_partner_for(request.user) is not None

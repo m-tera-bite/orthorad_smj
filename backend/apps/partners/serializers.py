@@ -3,7 +3,7 @@ from rest_framework import serializers
 from apps.appointments.models import Appointment
 from apps.appointments.serializers import ReportSerializer
 
-from .models import Partner, PartnerUser
+from .models import Notification, Partner, PartnerUser
 
 
 class PartnerUserSerializer(serializers.ModelSerializer):
@@ -57,4 +57,15 @@ class PartnerAppointmentSerializer(serializers.ModelSerializer):
             "status",
             "report",
         ]
+        read_only_fields = fields
+
+
+class NotificationSerializer(serializers.ModelSerializer):
+    appointment_patient_email = serializers.EmailField(
+        source="appointment.patient_email", read_only=True
+    )
+
+    class Meta:
+        model = Notification
+        fields = ["id", "message", "created_at", "is_read", "appointment_patient_email"]
         read_only_fields = fields

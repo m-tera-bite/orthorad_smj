@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../api/client";
 import NewAppointmentModal from "../../components/dashboard/NewAppointmentModal";
+import EditPatientModal from "../../components/dashboard/EditPatientModal";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 
 interface Patient {
@@ -27,6 +28,7 @@ export default function Pacientes() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [showNew, setShowNew] = useState(false);
+  const [editing, setEditing] = useState<Patient | null>(null);
   const [deleting, setDeleting] = useState<Patient | null>(null);
 
   function load() {
@@ -149,6 +151,21 @@ export default function Pacientes() {
                       Ver Citas
                     </button>
                     <button
+                      onClick={() => setEditing(p)}
+                      title="Editar correo y teléfono"
+                      className="flex-shrink-0 border border-secondary text-secondary rounded-[10px] px-3 hover:bg-secondary hover:text-white transition-colors"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 15 15" fill="none">
+                        <path
+                          d="M9.5 2l3 3-7 7-3.5.5.5-3.5 7-7z"
+                          stroke="currentColor"
+                          strokeWidth="1.3"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </button>
+                    <button
                       onClick={() => setDeleting(p)}
                       title="Eliminar paciente"
                       className="flex-shrink-0 border border-red-500 text-red-500 rounded-[10px] px-3 hover:bg-red-500 hover:text-white transition-colors"
@@ -174,7 +191,22 @@ export default function Pacientes() {
       {showNew && (
         <NewAppointmentModal
           onClose={() => setShowNew(false)}
-          onCreated={() => { load(); }}
+          onSaved={() => { load(); }}
+        />
+      )}
+
+      {editing && (
+        <EditPatientModal
+          patient={editing}
+          onClose={() => setEditing(null)}
+          onSaved={(updated) => {
+            setPatients((prev) =>
+              prev.map((p) =>
+                p.patient_email === editing.patient_email ? { ...p, ...updated } : p
+              )
+            );
+            setEditing(null);
+          }}
         />
       )}
 

@@ -7,6 +7,12 @@ from datetime import timedelta
 DEBUG = True
 ALLOWED_HOSTS = ["localhost", "127.0.0.1","orthorad-smj-prod-9ebfb0f7fb68.herokuapp.com"]
 
+# Prints outgoing emails to the console instead of sending real mail, so
+# local development never spams real clinics/patients. Override in .env
+# with EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend to test
+# real sends locally.
+EMAIL_BACKEND = config("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")
+
 DATABASES = {
     "default": dj_database_url.parse(config("SUPABASE_URI"))
 }
