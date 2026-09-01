@@ -13,6 +13,8 @@ export interface AppointmentOption {
   time?: string;
   patient_name: string;
   service_name: string;
+  date_of_birth?: string | null;
+  report_access_code?: string | null;
   existingFiles?: ReportFile[];
 }
 
@@ -141,6 +143,25 @@ export default function UploadModal({ appointments, onClose, onUploaded, onFileD
             </div>
           )}
 
+          {/* Patient access code */}
+          {current?.report_access_code && (
+            <div className="bg-background rounded-[10px] px-4 py-3 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs font-quicksand text-text/50 mb-0.5">Código de expediente del paciente</p>
+                <p className="text-primary font-montserrat font-bold text-sm tracking-wide">
+                  {current.report_access_code}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigator.clipboard.writeText(current.report_access_code!)}
+                className="text-xs text-[#3f6e7a] underline font-quicksand flex-shrink-0"
+              >
+                Copiar
+              </button>
+            </div>
+          )}
+
           {/* Existing files */}
           {hasExisting && (
             <div>
@@ -248,17 +269,25 @@ export default function UploadModal({ appointments, onClose, onUploaded, onFileD
           </div>
 
           {hasPending && (
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={notifyPatient}
-                onChange={(e) => setNotifyPatient(e.target.checked)}
-                className="accent-action-dark"
-              />
-              <span className="text-text font-quicksand text-sm">
-                También notificar al paciente por correo
-              </span>
-            </label>
+            <div className="space-y-1.5">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={notifyPatient}
+                  onChange={(e) => setNotifyPatient(e.target.checked)}
+                  className="accent-action-dark"
+                />
+                <span className="text-text font-quicksand text-sm">
+                  También notificar al paciente por correo
+                </span>
+              </label>
+              {!current?.date_of_birth && (
+                <p className="text-amber-600 text-xs font-quicksand pl-6">
+                  ⚠ Este paciente no tiene fecha de nacimiento registrada — no podrá usar el
+                  portal de resultados hasta agregarla.
+                </p>
+              )}
+            </div>
           )}
 
           {error && <p className="text-red-600 text-sm font-quicksand">{error}</p>}

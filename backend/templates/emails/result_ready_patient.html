@@ -7,9 +7,12 @@
   Hola {{ patient_name }},
 </p>
 <p style="margin:0 0 12px;">
-  Tus resultados de {{ study_type }} ya están disponibles en tu portal de OrthoRad.
+  Tus resultados de {{ study_type }} ya están disponibles.
+</p>
+<p style="margin:0 0 16px;">
+  Tu código de expediente es: <strong>{{ access_code }}</strong>
 </p>
 <p style="margin:0;">
-  Ingresa a tu portal para consultarlos y descargarlos.
+  Ingresa al portal de pacientes con tu fecha de nacimiento y este código para consultarlos y descargarlos.
 </p>
 {% endblock %}

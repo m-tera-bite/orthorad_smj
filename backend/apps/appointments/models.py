@@ -1,10 +1,26 @@
+import secrets
+
 from django.db import models
+from django.utils import timezone
 
 from apps.core.models import SoftDeleteModel
 
 
 def _report_file_path(instance, filename):
     return f"reports/{instance.report.appointment_id}/{filename}"
+
+
+def generate_report_access_code():
+    """A short 'expedition code' (e.g. ORTHORAD-2026-0987) a patient can use,
+    together with their date of birth, to look up one specific result on the
+    public portal. Not meant to be cryptographically strong on its own — the
+    guest lookup endpoint is rate-limited, which is the real control here."""
+    year = timezone.localdate().year
+    for _ in range(10):
+        candidate = f"ORTHORAD-{year}-{secrets.randbelow(10000):04d}"
+        if not Report.objects.filter(access_code=candidate).exists():
+            return candidate
+    raise RuntimeError("No se pudo generar un código de acceso único.")
 
 
 class ServiceCategory(models.Model):
@@ -46,6 +62,7 @@ class Appointment(SoftDeleteModel):
     patient_name = models.CharField(max_length=200)
     patient_email = models.EmailField()
     patient_phone = models.CharField(max_length=20)
+    date_of_birth = models.DateField(null=True, blank=True)
     service = models.ForeignKey(Service, on_delete=models.PROTECT, related_name="appointments")
     referring_partner = models.ForeignKey(
         "partners.Partner",
@@ -77,6 +94,7 @@ class Report(models.Model):
     emitted_at = models.DateTimeField(null=True, blank=True)
     uploaded_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    access_code = models.CharField(max_length=32, null=True, blank=True, unique=True)
 
     def __str__(self):
         return f"Reporte — {self.appointment}"

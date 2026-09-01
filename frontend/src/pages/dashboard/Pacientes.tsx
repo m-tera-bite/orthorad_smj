@@ -9,6 +9,7 @@ interface Patient {
   patient_name: string;
   patient_email: string;
   patient_phone: string;
+  date_of_birth: string | null;
   appointment_count: number;
   last_appointment: string | null;
 }
@@ -132,6 +133,13 @@ export default function Pacientes() {
                       <path d="M2.5 5.5C3.4 7.2 5 8.8 6.8 9.7L8.2 8.3c.2-.2.5-.25.75-.15.75.25 1.55.4 2.4.4.4 0 .75.35.75.75V11.5c0 .4-.35.75-.75.75C5 12.25.75 8 .75 2.75.75 2.35 1.1 2 1.5 2H3.75c.4 0 .75.35.75.75 0 .85.15 1.65.4 2.4.075.25 0 .55-.175.75L2.5 5.5z" stroke="currentColor" strokeWidth="1.2" />
                     </svg>
                     <span>{p.patient_phone || "—"}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-text font-quicksand text-sm">
+                    <svg width="13" height="13" viewBox="0 0 13 13" fill="none" className="text-alternative flex-shrink-0">
+                      <rect x="1.5" y="2" width="10" height="9.5" rx="1" stroke="currentColor" strokeWidth="1.2" />
+                      <path d="M1.5 4.5h10M4 1v2M9 1v2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                    </svg>
+                    <span>{p.date_of_birth ? formatDate(p.date_of_birth) : "Sin fecha de nacimiento"}</span>
                   </div>
                   <div className="flex items-center justify-between mt-3 pt-3 border-t border-divider">
                     <div className="flex items-center gap-2">

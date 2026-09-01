@@ -42,6 +42,7 @@ const OBJECT_OPTIONS = [
   { value: "partner_user", label: "Accesos de clínicas" },
   { value: "report_file", label: "Archivos de resultados" },
   { value: "report_email", label: "Correos de resultados" },
+  { value: "report_lookup", label: "Búsquedas del portal de pacientes" },
   { value: "partner_portal", label: "Portal de socios" },
   { value: "dashboard", label: "Dashboard" },
 ];
@@ -62,6 +63,7 @@ const OBJECT_LABELS: Record<string, string> = {
   partner_user: "Acceso de clínica",
   report_file: "Archivo de resultados",
   report_email: "Correo de resultados",
+  report_lookup: "Búsqueda del portal de pacientes",
   partner_portal: "Portal de socios",
   dashboard: "Dashboard",
 };

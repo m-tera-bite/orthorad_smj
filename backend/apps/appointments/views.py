@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.validators import validate_email
@@ -17,7 +17,7 @@ from apps.audit.services import log_action
 from apps.partners.models import Notification
 
 from .emails import send_result_ready_emails
-from .models import Appointment, Report, ReportFile, Service
+from .models import Appointment, Report, ReportFile, Service, generate_report_access_code
 from .serializers import AppointmentSerializer, ReportFileSerializer, ReportSerializer, ServiceSerializer
 
 logger = logging.getLogger(__name__)
@@ -27,6 +27,7 @@ _APPOINTMENT_TRACKED_FIELDS = [
     "patient_name",
     "patient_email",
     "patient_phone",
+    "date_of_birth",
     "service_id",
     "referring_partner_id",
     "scheduled_at",
@@ -61,6 +62,7 @@ def _appointment_snapshot(appointment):
         "paciente": appointment.patient_name,
         "correo": appointment.patient_email,
         "telefono": appointment.patient_phone,
+        "nacimiento": _fmt(appointment.date_of_birth),
         "servicio": appointment.service.name if appointment.service_id else None,
         "clinica_referente": (
             appointment.referring_partner.name if appointment.referring_partner_id else None
@@ -225,22 +227,29 @@ class PatientsListView(APIView):
     def get(self, request):
         if not request.user.is_staff:
             return Response({"detail": "Forbidden."}, status=403)
-        rows = (
-            Appointment.objects
-            .values("patient_name", "patient_email", "patient_phone")
-            .annotate(
-                appointment_count=Count("id"),
-                last_appointment=Max("scheduled_at"),
-            )
-            .order_by("patient_name")
+        rows = Appointment.objects.values(
+            "patient_name", "patient_email", "patient_phone"
+        ).annotate(
+            appointment_count=Count("id"),
+            last_appointment=Max("scheduled_at"),
         )
+
+        q = (request.query_params.get("q") or "").strip()
+        if q:
+            for word in q.split():
+                rows = rows.filter(patient_name__icontains=word)
+            rows = rows.annotate(date_of_birth=Max("date_of_birth"))
+            rows = rows.order_by("patient_name")[:10]
+        else:
+            rows = rows.order_by("patient_name")
+
         rows = list(rows)
         log_action(
             request,
             AuditLog.Action.VIEW,
             object_type="patient",
             description="Consultó el listado de pacientes",
-            details={"resultados": len(rows)},
+            details={"resultados": len(rows), "busqueda": q or None},
         )
         return Response(rows)
 
@@ -257,12 +266,20 @@ class PatientsListView(APIView):
 
         new_email = (request.data.get("patient_email") or "").strip()
         new_phone = (request.data.get("patient_phone") or "").strip()
+        raw_dob = (request.data.get("date_of_birth") or "").strip()
         if not new_email:
             return Response({"detail": "El correo es obligatorio."}, status=400)
         try:
             validate_email(new_email)
         except DjangoValidationError:
             return Response({"detail": "Correo inválido."}, status=400)
+
+        new_dob = None
+        if raw_dob:
+            try:
+                new_dob = datetime.strptime(raw_dob, "%Y-%m-%d").date()
+            except ValueError:
+                return Response({"detail": "Fecha de nacimiento inválida."}, status=400)
 
         appointments = list(Appointment.objects.filter(patient_email__iexact=email))
         if not appointments:
@@ -271,9 +288,10 @@ class PatientsListView(APIView):
         patient_name = appointments[0].patient_name
         old_email = appointments[0].patient_email
         old_phone = appointments[0].patient_phone
+        old_dob = appointments[0].date_of_birth
 
         Appointment.objects.filter(patient_email__iexact=email).update(
-            patient_email=new_email, patient_phone=new_phone
+            patient_email=new_email, patient_phone=new_phone, date_of_birth=new_dob
         )
 
         log_action(
@@ -281,11 +299,11 @@ class PatientsListView(APIView):
             AuditLog.Action.UPDATE,
             object_type="patient",
             object_id=new_email,
-            description=f"Editó al paciente {patient_name} — correo/teléfono actualizados",
+            description=f"Editó al paciente {patient_name} — datos de contacto actualizados",
             details={
                 "paciente": patient_name,
-                "antes": {"correo": old_email, "telefono": old_phone},
-                "despues": {"correo": new_email, "telefono": new_phone},
+                "antes": {"correo": old_email, "telefono": old_phone, "nacimiento": _fmt(old_dob)},
+                "despues": {"correo": new_email, "telefono": new_phone, "nacimiento": _fmt(new_dob)},
                 "citas_actualizadas": len(appointments),
             },
         )
@@ -294,6 +312,7 @@ class PatientsListView(APIView):
                 "patient_name": patient_name,
                 "patient_email": new_email,
                 "patient_phone": new_phone,
+                "date_of_birth": _fmt(new_dob),
                 "appointment_count": len(appointments),
                 "last_appointment": _fmt(max(a.scheduled_at for a in appointments)),
             }
@@ -493,6 +512,10 @@ class ReportUploadView(APIView):
 
         report, _ = Report.objects.get_or_create(appointment=appointment)
         was_first_upload = report.uploaded_at is None
+
+        if not report.access_code:
+            report.access_code = generate_report_access_code()
+            report.save(update_fields=["access_code"])
 
         created = []
         for f in files:

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import api from "../../api/client";
 
 interface ServiceCategory {
@@ -24,11 +24,21 @@ export interface EditableAppointment {
   patient_name: string;
   patient_email: string;
   patient_phone: string;
+  date_of_birth: string | null;
   service: number | null;
   referring_partner: number | null;
   scheduled_at: string;
   room: string;
   notes: string;
+}
+
+interface PatientMatch {
+  patient_name: string;
+  patient_email: string;
+  patient_phone: string;
+  date_of_birth: string | null;
+  appointment_count: number;
+  last_appointment: string | null;
 }
 
 interface Props {
@@ -54,6 +64,7 @@ export default function NewAppointmentModal({ onClose, onSaved, defaultEmail = "
           patient_name: appointment.patient_name,
           patient_email: appointment.patient_email,
           patient_phone: appointment.patient_phone,
+          date_of_birth: appointment.date_of_birth ?? "",
           service: appointment.service ? String(appointment.service) : "",
           referring_partner: appointment.referring_partner ? String(appointment.referring_partner) : "",
           scheduled_at: toDatetimeLocal(appointment.scheduled_at),
@@ -64,6 +75,7 @@ export default function NewAppointmentModal({ onClose, onSaved, defaultEmail = "
           patient_name: "",
           patient_email: defaultEmail,
           patient_phone: "",
+          date_of_birth: "",
           service: "",
           referring_partner: "",
           scheduled_at: "",
@@ -73,6 +85,65 @@ export default function NewAppointmentModal({ onClose, onSaved, defaultEmail = "
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Patient-search-to-reuse (create mode only)
+  const [matches, setMatches] = useState<PatientMatch[]>([]);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const nameFieldRef = useRef<HTMLDivElement>(null);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (isEdit) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (nameFieldRef.current && !nameFieldRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isEdit]);
+
+  useEffect(() => {
+    return () => {
+      if (searchTimer.current) clearTimeout(searchTimer.current);
+    };
+  }, []);
+
+  function handlePatientNameChange(value: string) {
+    set("patient_name", value);
+    if (isEdit) return;
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    const query = value.trim();
+    if (query.length < 2) {
+      setMatches([]);
+      setDropdownOpen(false);
+      return;
+    }
+    searchTimer.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const { data } = await api.get(`/appointments/patients/?q=${encodeURIComponent(query)}`);
+        setMatches(data);
+        setDropdownOpen(true);
+      } catch {
+        setMatches([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 300);
+  }
+
+  function applyMatch(m: PatientMatch) {
+    setForm((prev) => ({
+      ...prev,
+      patient_name: m.patient_name,
+      patient_email: m.patient_email,
+      patient_phone: m.patient_phone,
+      date_of_birth: m.date_of_birth ?? "",
+    }));
+    setDropdownOpen(false);
+  }
 
   useEffect(() => {
     api.get("/appointments/services/").then(({ data }) => setServices(data));
@@ -96,6 +167,7 @@ export default function NewAppointmentModal({ onClose, onSaved, defaultEmail = "
     setError(null);
     const payload = {
       ...form,
+      date_of_birth: form.date_of_birth || null,
       service: Number(form.service),
       referring_partner: form.referring_partner ? Number(form.referring_partner) : null,
     };
@@ -141,17 +213,58 @@ export default function NewAppointmentModal({ onClose, onSaved, defaultEmail = "
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto">
           <div className="grid grid-cols-2 gap-4">
-            {/* Patient name — full width */}
-            <div className="col-span-2">
+            {/* Patient name — full width, with search-to-reuse dropdown */}
+            <div className="col-span-2 relative" ref={nameFieldRef}>
               <label className={labelClass}>Nombre del paciente *</label>
               <input
                 required
                 type="text"
+                autoComplete="off"
                 value={form.patient_name}
-                onChange={(e) => set("patient_name", e.target.value)}
+                onChange={(e) => handlePatientNameChange(e.target.value)}
+                onFocus={() => { if (matches.length > 0) setDropdownOpen(true); }}
                 className={inputClass}
                 placeholder="Nombre completo"
               />
+              {!isEdit && dropdownOpen && (
+                <div className="absolute left-0 right-0 top-full z-50 mt-1 bg-white rounded-[10px] shadow-xl border border-divider max-h-64 overflow-y-auto">
+                  {searching ? (
+                    <p className="px-4 py-3 text-text/50 text-sm font-quicksand">Buscando...</p>
+                  ) : matches.length === 0 ? (
+                    <p className="px-4 py-3 text-text/50 text-sm font-quicksand">Sin coincidencias.</p>
+                  ) : (
+                    matches.map((m) => (
+                      <button
+                        type="button"
+                        key={m.patient_email || m.patient_name}
+                        onClick={() => applyMatch(m)}
+                        className="w-full text-left px-4 py-2.5 hover:bg-background/60 border-b border-background last:border-0"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-montserrat font-semibold text-sm text-primary truncate">
+                            {m.patient_name}
+                          </span>
+                          <span className="text-[10px] bg-secondary/10 text-secondary rounded-full px-2 py-0.5 flex-shrink-0">
+                            {m.appointment_count} {m.appointment_count === 1 ? "visita" : "visitas"}
+                          </span>
+                        </div>
+                        <p className="text-xs text-text/60 font-quicksand truncate">
+                          {m.patient_phone || m.patient_email || "—"}
+                        </p>
+                      </button>
+                    ))
+                  )}
+                  {form.patient_name.trim().length >= 2 && (
+                    <button
+                      type="button"
+                      onClick={() => setDropdownOpen(false)}
+                      className="w-full text-left px-4 py-2 text-xs text-secondary font-quicksand hover:bg-background/60"
+                    >
+                      + Usar "{form.patient_name}" (paciente nuevo)
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Email | Phone */}
@@ -173,6 +286,17 @@ export default function NewAppointmentModal({ onClose, onSaved, defaultEmail = "
                 onChange={(e) => set("patient_phone", e.target.value)}
                 className={inputClass}
                 placeholder="+502 0000 0000"
+              />
+            </div>
+
+            {/* Date of birth */}
+            <div>
+              <label className={labelClass}>Fecha de nacimiento</label>
+              <input
+                type="date"
+                value={form.date_of_birth}
+                onChange={(e) => set("date_of_birth", e.target.value)}
+                className={inputClass}
               />
             </div>
 

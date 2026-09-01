@@ -28,6 +28,11 @@ class PatientProfileSerializer(serializers.ModelSerializer):
         fields = ["user", "phone", "date_of_birth"]
 
 
+class PortalReportLookupRequestSerializer(serializers.Serializer):
+    date_of_birth = serializers.DateField()
+    code = serializers.CharField(max_length=32)
+
+
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=8)
 

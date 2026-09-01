@@ -12,6 +12,8 @@ interface ReportData {
 interface AppointmentRow {
   id: number;
   patient_name: string;
+  date_of_birth: string | null;
+  report_access_code: string | null;
   service_name: string;
   scheduled_at: string;
   status: string;
@@ -97,7 +99,13 @@ export default function Reportes() {
 
   const pendingAppointments: AppointmentOption[] = appointments
     .filter((a) => (a.report?.files.length ?? 0) === 0)
-    .map((a) => ({ id: a.id, patient_name: a.patient_name, service_name: a.service_name }));
+    .map((a) => ({
+      id: a.id,
+      patient_name: a.patient_name,
+      service_name: a.service_name,
+      date_of_birth: a.date_of_birth,
+      report_access_code: a.report_access_code,
+    }));
 
   const modalAppointments: AppointmentOption[] = uploadTarget
     ? appointments
@@ -106,6 +114,8 @@ export default function Reportes() {
           id: a.id,
           patient_name: a.patient_name,
           service_name: a.service_name,
+          date_of_birth: a.date_of_birth,
+          report_access_code: a.report_access_code,
           existingFiles: a.report?.files ?? [],
         }))
     : pendingAppointments;

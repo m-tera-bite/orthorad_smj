@@ -45,12 +45,23 @@ class AppointmentSerializer(serializers.ModelSerializer):
         source="referring_partner.name", read_only=True, default=None
     )
     report = serializers.SerializerMethodField()
+    report_access_code = serializers.SerializerMethodField()
 
     def get_report(self, obj):
         try:
             return ReportSerializer(obj.report).data
         except Report.DoesNotExist:
             return None
+
+    def get_report_access_code(self, obj):
+        # Staff-only, even though this serializer is also used by the public
+        # (AllowAny) booking endpoint — never expose a patient's access code
+        # to an unauthenticated request.
+        request = self.context.get("request")
+        if not (request and request.user.is_authenticated and request.user.is_staff):
+            return None
+        report = getattr(obj, "report", None)
+        return report.access_code if report else None
 
     def validate_status(self, value):
         """Only clinic staff may set or change the status (public booking
@@ -87,6 +98,7 @@ class AppointmentSerializer(serializers.ModelSerializer):
             "patient_name",
             "patient_email",
             "patient_phone",
+            "date_of_birth",
             "service",
             "service_name",
             "referring_partner",
@@ -97,5 +109,6 @@ class AppointmentSerializer(serializers.ModelSerializer):
             "status",
             "created_at",
             "report",
+            "report_access_code",
         ]
         read_only_fields = ["created_at"]

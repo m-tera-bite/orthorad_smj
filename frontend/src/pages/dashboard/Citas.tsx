@@ -9,6 +9,7 @@ interface Appointment {
   patient_name: string;
   patient_email: string;
   patient_phone: string;
+  date_of_birth: string | null;
   service: number;
   service_name: string;
   referring_partner: number | null;

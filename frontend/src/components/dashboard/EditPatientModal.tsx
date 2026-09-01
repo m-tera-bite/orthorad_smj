@@ -5,6 +5,7 @@ interface Patient {
   patient_name: string;
   patient_email: string;
   patient_phone: string;
+  date_of_birth: string | null;
 }
 
 interface Props {
@@ -16,6 +17,7 @@ interface Props {
 export default function EditPatientModal({ patient, onClose, onSaved }: Props) {
   const [email, setEmail] = useState(patient.patient_email);
   const [phone, setPhone] = useState(patient.patient_phone);
+  const [dob, setDob] = useState(patient.date_of_birth ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,7 +32,7 @@ export default function EditPatientModal({ patient, onClose, onSaved }: Props) {
     try {
       const { data } = await api.patch(
         `/appointments/patients/?email=${encodeURIComponent(patient.patient_email)}`,
-        { patient_email: email, patient_phone: phone }
+        { patient_email: email, patient_phone: phone, date_of_birth: dob || null }
       );
       onSaved(data);
     } catch {
@@ -82,6 +84,15 @@ export default function EditPatientModal({ patient, onClose, onSaved }: Props) {
               onChange={(e) => setPhone(e.target.value)}
               className={inputClass}
               placeholder="+502 0000 0000"
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Fecha de nacimiento</label>
+            <input
+              type="date"
+              value={dob}
+              onChange={(e) => setDob(e.target.value)}
+              className={inputClass}
             />
           </div>
 

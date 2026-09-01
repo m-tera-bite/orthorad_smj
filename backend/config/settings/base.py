@@ -107,4 +107,9 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions.IsAuthenticatedOrReadOnly",
     ),
+    "DEFAULT_THROTTLE_RATES": {
+        # Public guest results lookup (DOB + access code) — scoped to just
+        # that view, not a global throttle.
+        "portal_lookup": "10/hour",
+    },
 }

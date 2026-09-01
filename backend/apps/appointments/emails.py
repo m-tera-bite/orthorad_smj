@@ -116,7 +116,11 @@ def send_result_ready_emails(report, notify_patient=False):
                     to=appointment.patient_email,
                     subject="Tus resultados ya están disponibles",
                     template="emails/result_ready_patient.html",
-                    context=base_context,
+                    context={
+                        **base_context,
+                        "login_url": f"{settings.SITE_URL}/portal-cliente",
+                        "access_code": report.access_code,
+                    },
                 )
             )
         else:
