@@ -60,8 +60,8 @@ class Appointment(SoftDeleteModel):
         CANCELLED = "cancelled", "Cancelado"
 
     patient_name = models.CharField(max_length=200)
-    patient_email = models.EmailField()
-    patient_phone = models.CharField(max_length=20)
+    patient_email = models.EmailField(blank=True)
+    patient_phone = models.CharField(max_length=20, blank=True)
     date_of_birth = models.DateField(null=True, blank=True)
     service = models.ForeignKey(Service, on_delete=models.PROTECT, related_name="appointments")
     referring_partner = models.ForeignKey(

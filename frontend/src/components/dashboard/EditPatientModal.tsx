@@ -1,5 +1,6 @@
 import { useState } from "react";
 import api from "../../api/client";
+import DatePicker from "../ui/DatePicker";
 
 interface Patient {
   patient_name: string;
@@ -88,12 +89,7 @@ export default function EditPatientModal({ patient, onClose, onSaved }: Props) {
           </div>
           <div>
             <label className={labelClass}>Fecha de nacimiento</label>
-            <input
-              type="date"
-              value={dob}
-              onChange={(e) => setDob(e.target.value)}
-              className={inputClass}
-            />
+            <DatePicker value={dob} onChange={setDob} triggerClassName={`${inputClass} text-left`} />
           </div>
 
           <p className="text-[11px] text-text/50 font-quicksand">

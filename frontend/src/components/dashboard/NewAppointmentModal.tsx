@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import api from "../../api/client";
+import DatePicker from "../ui/DatePicker";
 
 interface ServiceCategory {
   id: number;
@@ -54,6 +55,12 @@ function toDatetimeLocal(iso: string) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+function nowDatetimeLocal() {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const d = new Date();
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export default function NewAppointmentModal({ onClose, onSaved, defaultEmail = "", appointment }: Props) {
   const isEdit = Boolean(appointment);
   const [services, setServices] = useState<Service[]>([]);
@@ -78,13 +85,14 @@ export default function NewAppointmentModal({ onClose, onSaved, defaultEmail = "
           date_of_birth: "",
           service: "",
           referring_partner: "",
-          scheduled_at: "",
-          room: "",
+          scheduled_at: nowDatetimeLocal(),
+          room: "1",
           notes: "",
         }
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showSchedule, setShowSchedule] = useState(false);
 
   // Patient-search-to-reuse (create mode only)
   const [matches, setMatches] = useState<PatientMatch[]>([]);
@@ -292,11 +300,10 @@ export default function NewAppointmentModal({ onClose, onSaved, defaultEmail = "
             {/* Date of birth */}
             <div>
               <label className={labelClass}>Fecha de nacimiento</label>
-              <input
-                type="date"
+              <DatePicker
                 value={form.date_of_birth}
-                onChange={(e) => set("date_of_birth", e.target.value)}
-                className={inputClass}
+                onChange={(v) => set("date_of_birth", v)}
+                triggerClassName={`${inputClass} text-left`}
               />
             </div>
 
@@ -353,27 +360,40 @@ export default function NewAppointmentModal({ onClose, onSaved, defaultEmail = "
               </div>
             </div>
 
-            {/* Date/time | Room */}
-            <div>
-              <label className={labelClass}>Fecha y hora *</label>
-              <input
-                required
-                type="datetime-local"
-                value={form.scheduled_at}
-                onChange={(e) => set("scheduled_at", e.target.value)}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Sala / Consultorio</label>
-              <input
-                type="text"
-                value={form.room}
-                onChange={(e) => set("room", e.target.value)}
-                className={inputClass}
-                placeholder="Ej. Sala 1"
-              />
-            </div>
+            {/* Date/time | Room — collapsed behind a summary by default */}
+            {showSchedule ? (
+              <>
+                <div>
+                  <label className={labelClass}>Fecha y hora *</label>
+                  <input
+                    required
+                    type="datetime-local"
+                    value={form.scheduled_at}
+                    onChange={(e) => set("scheduled_at", e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>Sala / Consultorio</label>
+                  <input
+                    type="text"
+                    value={form.room}
+                    onChange={(e) => set("room", e.target.value)}
+                    className={inputClass}
+                    placeholder="Ej. Sala 1"
+                  />
+                </div>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowSchedule(true)}
+                className="col-span-2 text-left bg-background rounded-[10px] px-4 py-2.5 text-text font-quicksand text-sm hover:bg-background/70 transition-colors"
+              >
+                Agendar Cita{" "}
+                <span className="text-secondary font-semibold underline">(cambiar fecha, hora o sala)</span>
+              </button>
+            )}
 
             {/* Referring partner clinic — full width */}
             <div className="col-span-2">

@@ -2,6 +2,7 @@ import { useState, FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { asset } from "@/lib/asset";
 import api from "@/api/client";
+import DatePicker from "@/components/ui/DatePicker";
 
 interface ResultFile {
   id: number;
@@ -37,6 +38,10 @@ export default function PortalCliente() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    if (!dob || !code) {
+      setError("Completa tu fecha de nacimiento y tu código de expediente.");
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -123,13 +128,11 @@ export default function PortalCliente() {
                 <label className="block text-white text-sm font-quicksand font-medium mb-2">
                   Fecha de Nacimiento
                 </label>
-                <input
-                  type="date"
-                  required
+                <DatePicker
                   value={dob}
-                  onChange={(e) => setDob(e.target.value)}
-                  placeholder="yyyy/mm/dd"
-                  className="w-full bg-primary border border-secondary/60 text-white placeholder-secondary/60 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-alternative"
+                  onChange={setDob}
+                  placeholder="AAAA-MM-DD"
+                  triggerClassName="w-full text-left bg-primary border border-secondary/60 text-white placeholder-secondary/60 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-alternative"
                 />
               </div>
 
