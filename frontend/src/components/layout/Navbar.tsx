@@ -51,7 +51,7 @@ export default function Navbar() {
               to="/portal-socios"
               className="bg-action-dark text-background-alt text-xs font-medium px-[10px] py-[5px] rounded-[5px] hover:bg-action transition-colors"
             >
-              Clínicas Asociadas
+              Ingresar
             </Link>
             <Link
               to="/agenda"

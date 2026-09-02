@@ -29,7 +29,7 @@ export default function Footer() {
             <li><Link to="/sobre-nosotros" className="hover:text-primary transition-colors">Sobre Nosotros</Link></li>
             <li><Link to="/agenda" className="hover:text-primary transition-colors">Agendar Cita</Link></li>
             <li><Link to="/portal-cliente" className="hover:text-primary transition-colors">Portal Clientes</Link></li>
-            <li><Link to="/portal-socios" className="hover:text-primary transition-colors">Clínicas Asociadas</Link></li>
+            <li><Link to="/portal-socios" className="hover:text-primary transition-colors">Ingresar</Link></li>
           </ul>
         </div>
 
