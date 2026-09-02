@@ -1,6 +1,8 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
+const SHOW_CONFIGURACION = false;
+
 const NAV_ITEMS = [
   {
     label: "Dashboard",
@@ -106,22 +108,25 @@ export default function DashboardShell() {
 
         <div className="flex flex-col gap-3 mt-6">
           <div className="border-t border-alternative/30" />
-          <NavLink
-            to="/dashboard/configuracion"
-            className="flex items-center gap-3 text-alternative hover:bg-white/10 hover:text-white rounded-[10px] font-semibold text-[13px] transition-colors"
-            style={{ padding: "10px 14px" }}
-          >
-            <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
-              <circle cx="8.5" cy="8.5" r="2.5" stroke="currentColor" strokeWidth="1.5" />
-              <path
-                d="M8.5 1v2M8.5 14v2M1 8.5h2M14 8.5h2M3.4 3.4l1.4 1.4M12.2 12.2l1.4 1.4M3.4 13.6l1.4-1.4M12.2 4.8l1.4-1.4"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
-            </svg>
-            Configuración
-          </NavLink>
+          {/* Hidden until the settings page has content — link kept for when it's needed again. */}
+          {SHOW_CONFIGURACION && (
+            <NavLink
+              to="/dashboard/configuracion"
+              className="flex items-center gap-3 text-alternative hover:bg-white/10 hover:text-white rounded-[10px] font-semibold text-[13px] transition-colors"
+              style={{ padding: "10px 14px" }}
+            >
+              <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
+                <circle cx="8.5" cy="8.5" r="2.5" stroke="currentColor" strokeWidth="1.5" />
+                <path
+                  d="M8.5 1v2M8.5 14v2M1 8.5h2M14 8.5h2M3.4 3.4l1.4 1.4M12.2 12.2l1.4 1.4M3.4 13.6l1.4-1.4M12.2 4.8l1.4-1.4"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
+              </svg>
+              Configuración
+            </NavLink>
+          )}
           <button
             onClick={() => { logout(); navigate("/"); }}
             className="flex items-center gap-3 text-alternative hover:bg-white/10 hover:text-white rounded-[10px] font-semibold text-[13px] transition-colors w-full text-left"

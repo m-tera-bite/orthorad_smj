@@ -18,9 +18,10 @@ class AuditLogListView(ListAPIView):
     """Staff-only, read-only audit trail with filters.
 
     Query params:
-      action        — exact action (view/create/update/delete/upload)
-      exclude_views — "1" hides read (view) entries
-      object_type   — exact object type (appointment/patient/partner/...)
+      action        — comma-separated actions (view/create/update/delete/upload/email)
+      exclude_views — "1" hides read (view) entries (ignored if action is given)
+      object_type   — comma-separated object types (appointment/patient/partner/...)
+      role          — comma-separated actor roles (staff/partner/patient/public)
       actor         — substring match on the actor's email
       q             — substring match on the description
       date_from     — ISO date (inclusive)
@@ -37,13 +38,20 @@ class AuditLogListView(ListAPIView):
 
         action = params.get("action")
         if action:
-            qs = qs.filter(action=action)
+            values = [v for v in action.split(",") if v]
+            qs = qs.filter(action__in=values)
         elif params.get("exclude_views") == "1":
             qs = qs.exclude(action=AuditLog.Action.VIEW)
 
         object_type = params.get("object_type")
         if object_type:
-            qs = qs.filter(object_type=object_type)
+            values = [v for v in object_type.split(",") if v]
+            qs = qs.filter(object_type__in=values)
+
+        role = params.get("role")
+        if role:
+            values = [v for v in role.split(",") if v]
+            qs = qs.filter(actor_role__in=values)
 
         actor = params.get("actor")
         if actor:
