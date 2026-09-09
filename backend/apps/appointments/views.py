@@ -2,7 +2,6 @@ from datetime import datetime, timedelta
 
 from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.core.files.storage import default_storage
 from django.core.validators import validate_email
 from django.db import transaction
 from django.db.models import Count, Max, Min
@@ -574,6 +573,14 @@ def _finalize_report_file(rf, notify_patient, request):
     return rf
 
 
+def _gcs_client():
+    credentials = getattr(settings, "GS_CREDENTIALS", None)
+    return gcs_storage.Client(
+        credentials=credentials,
+        project=getattr(credentials, "project_id", None),
+    )
+
+
 def _report_file_response(rf):
     try:
         url = rf.file.url if rf.file else None
@@ -634,12 +641,7 @@ class ReportUploadInitView(APIView):
             rf.file.name = blob_path
             rf.save(update_fields=["file"])
 
-            credentials = getattr(settings, "GS_CREDENTIALS", None)
-            client = gcs_storage.Client(
-                credentials=credentials,
-                project=getattr(credentials, "project_id", None),
-            )
-            blob = client.bucket(settings.GS_BUCKET_NAME).blob(blob_path)
+            blob = _gcs_client().bucket(settings.GS_BUCKET_NAME).blob(blob_path)
             upload_url = blob.generate_signed_url(
                 version="v4",
                 method="PUT",
@@ -680,7 +682,23 @@ class ReportUploadFinalizeView(APIView):
         if rf.status == ReportFile.Status.STORED:
             return Response(_report_file_response(rf))  # idempotent retry
 
-        if not rf.file or not default_storage.exists(rf.file.name):
+        # NOTE: deliberately not django-storages' `default_storage.exists()`
+        # here — its GCS backend hard-codes exists() to always return False
+        # whenever GS_FILE_OVERWRITE is left at its default of True (which it
+        # is in this app), since that flag is meant to skip Django's
+        # "generate a unique name" step during .save(), not to answer "does
+        # this object exist". Check GCS directly instead, via the same
+        # client/blob construction used to sign the upload URL.
+        exists = False
+        if rf.file:
+            try:
+                exists = _gcs_client().bucket(settings.GS_BUCKET_NAME).blob(rf.file.name).exists()
+            except Exception:
+                logger.exception(
+                    "Error checking GCS for report file id=%s at %s", rf.pk, rf.file.name
+                )
+
+        if not exists:
             rf.status = ReportFile.Status.FAILED
             rf.save(update_fields=["status"])
             return Response(
