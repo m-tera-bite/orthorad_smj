@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import axios from "axios";
 import api from "../../api/client";
 
 export interface ReportFile {
@@ -6,6 +7,7 @@ export interface ReportFile {
   original_name: string;
   url: string | null;
   uploaded_at: string;
+  status: "pending" | "stored" | "failed";
 }
 
 export interface AppointmentOption {
@@ -25,12 +27,25 @@ interface Props {
   onFileDeleted?: (appointmentId: number, fileId: number) => void;
 }
 
+type PendingStatus = "pending" | "uploading" | "done" | "error";
+
+interface PendingUpload {
+  file: File;
+  status: PendingStatus;
+  progress: number; // 0-100
+  error?: string;
+  // Carried across retries so a retry reissues/reuses the same ReportFile
+  // row (via the init endpoint's reuse path) instead of creating a new one
+  // — and orphaning the previous attempt's row — every time.
+  reportFileId?: number;
+}
+
 export default function UploadModal({ appointments, onClose, onUploaded, onFileDeleted }: Props) {
   const [selectedId, setSelectedId] = useState<number | "">(appointments[0]?.id ?? "");
   const [existingFiles, setExistingFiles] = useState<ReportFile[]>(
     appointments[0]?.existingFiles ?? []
   );
-  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [pendingFiles, setPendingFiles] = useState<PendingUpload[]>([]);
   const [notifyPatient, setNotifyPatient] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -60,31 +75,101 @@ export default function UploadModal({ appointments, onClose, onUploaded, onFileD
     }
   }
 
+  function updatePending(index: number, patch: Partial<PendingUpload>) {
+    setPendingFiles((prev) => prev.map((p, i) => (i === index ? { ...p, ...patch } : p)));
+  }
+
+  // Uploads a single pending file: asks Django for either a direct-to-GCS
+  // signed URL or (local dev, no bucket configured) a small server URL,
+  // then does the actual transfer, then confirms. Django's own request in
+  // step 1 never carries file bytes, so it stays fast and small regardless
+  // of how large the file itself is.
+  async function uploadOne(index: number, pending: PendingUpload): Promise<ReportFile> {
+    const contentType = pending.file.type || "application/octet-stream";
+    const { data: initData } = await api.post(`/appointments/${selectedId}/report/upload/init/`, {
+      filename: pending.file.name,
+      content_type: contentType,
+      report_file_id: pending.reportFileId ?? null,
+    });
+    updatePending(index, { reportFileId: initData.report_file_id });
+
+    const onUploadProgress = (evt: { loaded: number; total?: number }) => {
+      const progress = evt.total ? Math.round((evt.loaded / evt.total) * 100) : 0;
+      updatePending(index, { progress });
+    };
+
+    if (initData.mode === "gcs") {
+      // Plain axios, deliberately NOT the app's `api` client — this request
+      // goes straight to storage.googleapis.com, a different origin, and
+      // must not carry the app's baseURL prefix or its bearer-token
+      // Authorization header.
+      await axios.put(initData.upload_url, pending.file, {
+        headers: initData.headers,
+        onUploadProgress,
+      });
+      const { data } = await api.post(
+        `/appointments/${selectedId}/report/upload/${initData.report_file_id}/finalize/`,
+        { notify_patient: notifyPatient }
+      );
+      return data;
+    }
+
+    // Local-dev fallback: no GCS bucket configured, upload straight to Django.
+    const form = new FormData();
+    form.append("file", pending.file);
+    form.append("notify_patient", String(notifyPatient));
+    const { data } = await api.post(initData.upload_url, form, {
+      headers: { "Content-Type": "multipart/form-data" },
+      onUploadProgress,
+    });
+    return data;
+  }
+
   async function handleUpload() {
     if (!selectedId || pendingFiles.length === 0) return;
     setUploading(true);
     setError(null);
-    try {
-      const form = new FormData();
-      for (const f of pendingFiles) form.append("files", f);
-      form.append("notify_patient", String(notifyPatient));
-      const { data } = await api.post(
-        `/appointments/${selectedId}/report/upload/`,
-        form,
-        { headers: { "Content-Type": "multipart/form-data" } }
-      );
-      onUploaded(Number(selectedId), data.uploaded_at, data.files);
+
+    // Upload sequentially, not Promise.all: the backend treats the first
+    // stored file for a report as the trigger for the "results ready"
+    // notification email, and while it's protected against a race, there's
+    // no reason to fire several finalize calls at once anyway.
+    let lastUploadedAt: string | null = null;
+    const newFiles: ReportFile[] = [];
+    let anyFailed = false;
+
+    for (let i = 0; i < pendingFiles.length; i++) {
+      if (pendingFiles[i].status === "done") continue; // retry: skip already-succeeded files
+
+      updatePending(i, { status: "uploading", progress: 0, error: undefined });
+      try {
+        const finalized = await uploadOne(i, pendingFiles[i]);
+        updatePending(i, { status: "done", progress: 100 });
+        lastUploadedAt = finalized.uploaded_at;
+        newFiles.push(finalized);
+      } catch {
+        anyFailed = true;
+        updatePending(i, { status: "error", error: "No se pudo subir." });
+      }
+    }
+
+    setUploading(false);
+    if (anyFailed) {
+      setError("Algunos archivos no se pudieron subir. Reintenta para volver a intentarlo.");
+      return;
+    }
+    if (lastUploadedAt) {
+      onUploaded(Number(selectedId), lastUploadedAt, newFiles);
       onClose();
-    } catch {
-      setError("No se pudo subir el archivo. Intenta de nuevo.");
-    } finally {
-      setUploading(false);
     }
   }
 
   function addFiles(list: FileList | null) {
     if (!list) return;
-    setPendingFiles((prev) => [...prev, ...Array.from(list)]);
+    setPendingFiles((prev) => [
+      ...prev,
+      ...Array.from(list).map((file) => ({ file, status: "pending" as PendingStatus, progress: 0 })),
+    ]);
   }
 
   function removePending(index: number) {
@@ -101,6 +186,8 @@ export default function UploadModal({ appointments, onClose, onUploaded, onFileD
   const current = appointments.find((a) => a.id === selectedId);
   const hasExisting = existingFiles.length > 0;
   const hasPending = pendingFiles.length > 0;
+  const hasErrors = pendingFiles.some((p) => p.status === "error");
+  const remainingCount = pendingFiles.filter((p) => p.status !== "done").length;
 
   return (
     <div
@@ -178,7 +265,17 @@ export default function UploadModal({ appointments, onClose, onUploaded, onFileD
                     <span className="flex-1 font-quicksand text-sm text-text truncate min-w-0">
                       {f.original_name}
                     </span>
-                    {f.url && (
+                    {f.status === "pending" && (
+                      <span className="text-secondary font-quicksand text-xs flex-shrink-0">
+                        Procesando…
+                      </span>
+                    )}
+                    {f.status === "failed" && (
+                      <span className="text-red-500 font-quicksand text-xs flex-shrink-0">
+                        Error al subir
+                      </span>
+                    )}
+                    {f.status === "stored" && f.url && (
                       <a
                         href={f.url}
                         target="_blank"
@@ -250,18 +347,49 @@ export default function UploadModal({ appointments, onClose, onUploaded, onFileD
             {/* Pending file queue */}
             {hasPending && (
               <ul className="mt-2 space-y-1">
-                {pendingFiles.map((f, i) => (
-                  <li key={i} className="flex items-center gap-2 bg-secondary/5 rounded-[8px] px-3 py-2">
-                    <span className="flex-1 font-quicksand text-sm text-text truncate min-w-0">{f.name}</span>
-                    <span className="text-text/40 font-quicksand text-xs flex-shrink-0">
-                      {(f.size / 1024).toFixed(0)} KB
-                    </span>
-                    <button
-                      onClick={() => removePending(i)}
-                      className="text-text/40 hover:text-red-500 transition-colors flex-shrink-0 text-base leading-none"
-                    >
-                      ×
-                    </button>
+                {pendingFiles.map((p, i) => (
+                  <li key={i} className="bg-secondary/5 rounded-[8px] px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <span className="flex-1 font-quicksand text-sm text-text truncate min-w-0">
+                        {p.file.name}
+                      </span>
+                      {p.status === "pending" && (
+                        <span className="text-text/40 font-quicksand text-xs flex-shrink-0">
+                          {(p.file.size / 1024).toFixed(0)} KB
+                        </span>
+                      )}
+                      {p.status === "uploading" && (
+                        <span className="text-secondary font-quicksand text-xs flex-shrink-0">
+                          {p.progress}%
+                        </span>
+                      )}
+                      {p.status === "done" && (
+                        <svg className="text-secondary flex-shrink-0" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <polyline points="20 6 9 17 4 12" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
+                      {p.status === "error" && (
+                        <span className="text-red-500 font-quicksand text-xs flex-shrink-0">
+                          Error
+                        </span>
+                      )}
+                      {p.status !== "uploading" && (
+                        <button
+                          onClick={() => removePending(i)}
+                          className="text-text/40 hover:text-red-500 transition-colors flex-shrink-0 text-base leading-none"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                    {p.status === "uploading" && (
+                      <div className="mt-1.5 h-1 bg-secondary/15 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-secondary transition-all duration-150"
+                          style={{ width: `${p.progress}%` }}
+                        />
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -308,6 +436,8 @@ export default function UploadModal({ appointments, onClose, onUploaded, onFileD
               >
                 {uploading
                   ? "Subiendo..."
+                  : hasErrors
+                  ? `Reintentar${remainingCount > 1 ? ` (${remainingCount})` : ""}`
                   : `Subir${pendingFiles.length > 1 ? ` (${pendingFiles.length})` : ""}`}
               </button>
             )}

@@ -1,10 +1,15 @@
 from datetime import datetime, timedelta
 
+from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.files.storage import default_storage
 from django.core.validators import validate_email
+from django.db import transaction
 from django.db.models import Count, Max, Min
 from django.utils import timezone
+from django.utils.text import get_valid_filename
 from django.utils.timezone import localdate
+from google.cloud import storage as gcs_storage
 from rest_framework import viewsets, permissions
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
@@ -490,9 +495,103 @@ class DashboardSummaryView(APIView):
         )
 
 
-class ReportUploadView(APIView):
+def _finalize_report_file(rf, notify_patient, request):
+    """Marks a ReportFile as stored and, if it's the first stored file for
+    its report, sends the "results ready" notification. Shared by the GCS
+    finalize step and the local-dev direct-upload fallback. Everything here
+    is fast (a DB transaction plus, occasionally, one SMTP send) — no file
+    bytes pass through this function or through Django at all in the GCS
+    case, which is the whole point: nothing here can time out a request
+    regardless of how large the underlying file is.
+
+    Safe under concurrent calls for different files of the same report: the
+    row lock below serializes the "is this the first stored file?" check so
+    two files finishing around the same time can't both trigger the email.
+    """
+    rf.status = ReportFile.Status.STORED
+    rf.save(update_fields=["file", "status"])
+
+    with transaction.atomic():
+        report = Report.objects.select_for_update().get(pk=rf.report_id)
+        was_first_upload = report.uploaded_at is None
+        report.uploaded_at = timezone.now()
+        if not report.emitted_at:
+            report.emitted_at = timezone.now()
+        report.save(update_fields=["uploaded_at", "emitted_at"])
+
+    appointment = report.appointment
+
+    if was_first_upload:
+        if appointment.referring_partner:
+            Notification.objects.create(
+                partner=appointment.referring_partner,
+                appointment=appointment,
+                message=(
+                    f"Resultados de {appointment.patient_name} — "
+                    f"{appointment.service.name} disponibles"
+                ),
+            )
+        try:
+            email_attempts = send_result_ready_emails(report, notify_patient=notify_patient)
+        except Exception:
+            logger.exception(
+                "Failed to send result-ready email(s) for appointment %s", appointment.id
+            )
+            email_attempts = []
+
+        for attempt in email_attempts:
+            kind_label = "clínica" if attempt["kind"] == "partner" else "paciente"
+            log_action(
+                request,
+                AuditLog.Action.EMAIL,
+                object_type="report_email",
+                object_id=appointment.id,
+                description=(
+                    f"{'Envió' if attempt['success'] else 'No se pudo enviar'} el correo de "
+                    f"resultados a la {kind_label} ({attempt['to'] or 'sin correo registrado'})"
+                    f" — cita #{appointment.id}, {appointment.patient_name}"
+                ),
+                details={
+                    "destinatario": attempt["to"],
+                    "tipo": attempt["kind"],
+                    "exito": attempt["success"],
+                    "error": attempt["error"],
+                },
+            )
+
+    log_action(
+        request,
+        AuditLog.Action.UPLOAD,
+        object_type="report_file",
+        object_id=appointment.id,
+        description=(
+            f"Subió el archivo {rf.original_name} de resultados a la cita"
+            f" #{appointment.id} — {appointment.patient_name}"
+        ),
+        details={"archivo": rf.original_name},
+    )
+
+    return rf
+
+
+def _report_file_response(rf):
+    try:
+        url = rf.file.url if rf.file else None
+    except Exception:
+        url = None
+    return ReportFileSerializer(rf).data | {"url": url}
+
+
+class ReportUploadInitView(APIView):
+    """Step 1 of uploading a result file: create (or reuse, on retry) a
+    ReportFile row and hand back either a short-lived signed URL the browser
+    can PUT the file to directly (GCS configured), or a small server URL to
+    fall back to (local dev, no bucket configured). Django never sees the
+    file's bytes in the GCS case — this request only ever carries a filename
+    and a content type, so it can't time out or exhaust memory no matter how
+    large the eventual file is."""
+
     permission_classes = [permissions.IsAuthenticated]
-    parser_classes = [MultiPartParser, FormParser]
 
     def post(self, request, appointment_id):
         if not request.user.is_staff:
@@ -503,93 +602,125 @@ class ReportUploadView(APIView):
         except Appointment.DoesNotExist:
             return Response({"detail": "Cita no encontrada."}, status=404)
 
-        # Accept "files" (multiple) or legacy "file" (single)
-        files = request.FILES.getlist("files") or (
-            [request.FILES["file"]] if "file" in request.FILES else []
-        )
-        if not files:
-            return Response({"detail": "No se proporcionó archivo."}, status=400)
+        filename = (request.data.get("filename") or "").strip()
+        if not filename:
+            return Response({"detail": "Falta el nombre del archivo."}, status=400)
+        content_type = request.data.get("content_type") or "application/octet-stream"
+        existing_id = request.data.get("report_file_id")
 
         report, _ = Report.objects.get_or_create(appointment=appointment)
-        was_first_upload = report.uploaded_at is None
-
         if not report.access_code:
             report.access_code = generate_report_access_code()
             report.save(update_fields=["access_code"])
 
-        created = []
-        for f in files:
+        rf = None
+        if existing_id:
+            rf = ReportFile.objects.filter(
+                pk=existing_id, report=report, status=ReportFile.Status.PENDING
+            ).first()
+            if rf is not None:
+                # Reissuing a URL for a retry — trust the row's own stored
+                # name over whatever the client resent, so the storage path
+                # we compute below stays stable across retries.
+                filename = rf.original_name
+        if rf is None:
             rf = ReportFile.objects.create(
-                report=report,
-                file=f,
-                original_name=f.name,
+                report=report, original_name=filename, status=ReportFile.Status.PENDING
             )
-            try:
-                url = rf.file.url
-            except Exception:
-                url = None
-            created.append(ReportFileSerializer(rf).data | {"url": url})
 
-        report.uploaded_at = timezone.now()
-        if not report.emitted_at:
-            report.emitted_at = timezone.now()
-        report.save(update_fields=["uploaded_at", "emitted_at"])
+        if settings.GS_BUCKET_NAME:
+            safe_name = get_valid_filename(filename)
+            blob_path = f"reports/{appointment.id}/{rf.pk}_{safe_name}"
+            rf.file.name = blob_path
+            rf.save(update_fields=["file"])
 
-        if was_first_upload:
-            notify_patient = request.data.get("notify_patient") in ("true", "True", "1", True)
-            if appointment.referring_partner:
-                Notification.objects.create(
-                    partner=appointment.referring_partner,
-                    appointment=appointment,
-                    message=(
-                        f"Resultados de {appointment.patient_name} — "
-                        f"{appointment.service.name} disponibles"
-                    ),
-                )
-            try:
-                email_attempts = send_result_ready_emails(report, notify_patient=notify_patient)
-            except Exception:
-                logger.exception(
-                    "Failed to send result-ready email(s) for appointment %s", appointment.id
-                )
-                email_attempts = []
-
-            for attempt in email_attempts:
-                kind_label = "clínica" if attempt["kind"] == "partner" else "paciente"
-                log_action(
-                    request,
-                    AuditLog.Action.EMAIL,
-                    object_type="report_email",
-                    object_id=appointment.id,
-                    description=(
-                        f"{'Envió' if attempt['success'] else 'No se pudo enviar'} el correo de "
-                        f"resultados a la {kind_label} ({attempt['to'] or 'sin correo registrado'})"
-                        f" — cita #{appointment.id}, {appointment.patient_name}"
-                    ),
-                    details={
-                        "destinatario": attempt["to"],
-                        "tipo": attempt["kind"],
-                        "exito": attempt["success"],
-                        "error": attempt["error"],
-                    },
-                )
-
-        log_action(
-            request,
-            AuditLog.Action.UPLOAD,
-            object_type="report_file",
-            object_id=appointment.id,
-            description=(
-                f"Subió {len(files)} archivo(s) de resultados a la cita"
-                f" #{appointment.id} — {appointment.patient_name}"
-            ),
-            details={"archivos": [f.name for f in files]},
-        )
+            credentials = getattr(settings, "GS_CREDENTIALS", None)
+            client = gcs_storage.Client(
+                credentials=credentials,
+                project=getattr(credentials, "project_id", None),
+            )
+            blob = client.bucket(settings.GS_BUCKET_NAME).blob(blob_path)
+            upload_url = blob.generate_signed_url(
+                version="v4",
+                method="PUT",
+                expiration=timedelta(minutes=60),
+                content_type=content_type,
+            )
+            return Response({
+                "mode": "gcs",
+                "report_file_id": rf.pk,
+                "upload_url": upload_url,
+                "headers": {"Content-Type": content_type},
+            })
 
         return Response({
-            "uploaded_at": timezone.localtime(report.uploaded_at).strftime("%H:%M"),
-            "files": created,
+            "mode": "server",
+            "report_file_id": rf.pk,
+            "upload_url": f"/appointments/{appointment.id}/report/upload/{rf.pk}/direct/",
         })
+
+
+class ReportUploadFinalizeView(APIView):
+    """Step 2 for the GCS mode, called after the browser's direct PUT to
+    the signed URL succeeds. Confirms the object actually landed (a cheap
+    metadata check, not proportional to file size) and marks it stored."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, appointment_id, report_file_id):
+        if not request.user.is_staff:
+            return Response({"detail": "Forbidden."}, status=403)
+
+        rf = ReportFile.objects.filter(
+            pk=report_file_id, report__appointment_id=appointment_id
+        ).first()
+        if rf is None:
+            return Response({"detail": "Archivo no encontrado."}, status=404)
+
+        if rf.status == ReportFile.Status.STORED:
+            return Response(_report_file_response(rf))  # idempotent retry
+
+        if not rf.file or not default_storage.exists(rf.file.name):
+            rf.status = ReportFile.Status.FAILED
+            rf.save(update_fields=["status"])
+            return Response(
+                {"detail": "El archivo no se recibió correctamente. Intenta de nuevo."},
+                status=400,
+            )
+
+        notify_patient = request.data.get("notify_patient") in ("true", "True", "1", True)
+        _finalize_report_file(rf, notify_patient, request)
+        return Response(_report_file_response(rf))
+
+
+class ReportUploadDirectView(APIView):
+    """Local-dev-only fallback, used only when GS_BUCKET_NAME isn't
+    configured (mode: "server" from the init step above). Files in that
+    situation are on local disk during development — small, no timeout or
+    memory risk to design around — so a normal synchronous upload is fine."""
+
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request, appointment_id, report_file_id):
+        if not request.user.is_staff:
+            return Response({"detail": "Forbidden."}, status=403)
+
+        rf = ReportFile.objects.filter(
+            pk=report_file_id, report__appointment_id=appointment_id
+        ).first()
+        if rf is None:
+            return Response({"detail": "Archivo no encontrado."}, status=404)
+
+        f = request.FILES.get("file")
+        if not f:
+            return Response({"detail": "No se proporcionó archivo."}, status=400)
+
+        rf.file.save(f.name, f, save=False)
+
+        notify_patient = request.data.get("notify_patient") in ("true", "True", "1", True)
+        _finalize_report_file(rf, notify_patient, request)
+        return Response(_report_file_response(rf))
 
 
 class ReportFileDeleteView(APIView):

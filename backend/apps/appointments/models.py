@@ -101,13 +101,19 @@ class Report(models.Model):
 
 
 class ReportFile(SoftDeleteModel):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Procesando"
+        STORED = "stored", "Almacenado"
+        FAILED = "failed", "Falló"
+
     report = models.ForeignKey(Report, on_delete=models.CASCADE, related_name="files")
-    file = models.FileField(upload_to=_report_file_path)
+    file = models.FileField(upload_to=_report_file_path, null=True, blank=True)
     original_name = models.CharField(max_length=255, blank=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
 
     class Meta:
         base_manager_name = "all_objects"
 
     def __str__(self):
-        return self.original_name or self.file.name
+        return self.original_name or (self.file.name if self.file else "")

@@ -34,3 +34,6 @@ Thumbs.db
 orthorad-smj-5df687af2e81.json
 image.png
 OrthoRad.pdf
+
+# allowed cors
+cors.json
