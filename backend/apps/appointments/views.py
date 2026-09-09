@@ -1,7 +1,11 @@
 from datetime import datetime, timedelta
 
+import threading
+
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.files.base import ContentFile
 from django.core.validators import validate_email
+from django.db import close_old_connections, transaction
 from django.db.models import Count, Max, Min
 from django.utils import timezone
 from django.utils.timezone import localdate
@@ -490,53 +494,37 @@ class DashboardSummaryView(APIView):
         )
 
 
-class ReportUploadView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-    parser_classes = [MultiPartParser, FormParser]
+def _store_report_file(report_file_id, content, filename, notify_patient, request):
+    """Runs in a background thread, kicked off after the HTTP response for
+    the upload request has already been returned. Writes the file to
+    storage (GCS or local, per STORAGES config) and, if this is the report's
+    first successfully stored file, sends the "results ready" notification.
 
-    def post(self, request, appointment_id):
-        if not request.user.is_staff:
-            return Response({"detail": "Forbidden."}, status=403)
+    There is no task queue in this deployment (single Heroku web dyno, no
+    worker process, no broker) — this thread is an accepted trade-off, not a
+    durable job: if the dyno restarts mid-write, this file's ReportFile row
+    is simply left at status="pending" forever, with no automatic retry.
+    Staff see that status in the dashboard and can re-upload manually.
+    """
+    try:
+        rf = ReportFile.objects.get(pk=report_file_id)
+        rf.file.save(filename, ContentFile(content), save=False)
+        rf.status = ReportFile.Status.STORED
+        rf.save(update_fields=["file", "status"])
 
-        try:
-            appointment = Appointment.objects.get(pk=appointment_id)
-        except Appointment.DoesNotExist:
-            return Response({"detail": "Cita no encontrada."}, status=404)
-
-        # Accept "files" (multiple) or legacy "file" (single)
-        files = request.FILES.getlist("files") or (
-            [request.FILES["file"]] if "file" in request.FILES else []
-        )
-        if not files:
-            return Response({"detail": "No se proporcionó archivo."}, status=400)
-
-        report, _ = Report.objects.get_or_create(appointment=appointment)
-        was_first_upload = report.uploaded_at is None
-
-        if not report.access_code:
-            report.access_code = generate_report_access_code()
-            report.save(update_fields=["access_code"])
-
-        created = []
-        for f in files:
-            rf = ReportFile.objects.create(
-                report=report,
-                file=f,
-                original_name=f.name,
-            )
-            try:
-                url = rf.file.url
-            except Exception:
-                url = None
-            created.append(ReportFileSerializer(rf).data | {"url": url})
-
-        report.uploaded_at = timezone.now()
-        if not report.emitted_at:
-            report.emitted_at = timezone.now()
-        report.save(update_fields=["uploaded_at", "emitted_at"])
+        # Row-level lock so concurrent threads (one per file in the same
+        # upload batch) can't both observe uploaded_at as None and both
+        # fire the "results ready" email.
+        with transaction.atomic():
+            report = Report.objects.select_for_update().get(pk=rf.report_id)
+            was_first_upload = report.uploaded_at is None
+            report.uploaded_at = timezone.now()
+            if not report.emitted_at:
+                report.emitted_at = timezone.now()
+            report.save(update_fields=["uploaded_at", "emitted_at"])
 
         if was_first_upload:
-            notify_patient = request.data.get("notify_patient") in ("true", "True", "1", True)
+            appointment = report.appointment
             if appointment.referring_partner:
                 Notification.objects.create(
                     partner=appointment.referring_partner,
@@ -573,6 +561,58 @@ class ReportUploadView(APIView):
                         "error": attempt["error"],
                     },
                 )
+    except Exception:
+        logger.exception("Error al procesar archivo de resultado id=%s", report_file_id)
+        ReportFile.objects.filter(pk=report_file_id).update(status=ReportFile.Status.FAILED)
+    finally:
+        close_old_connections()
+
+
+class ReportUploadView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request, appointment_id):
+        if not request.user.is_staff:
+            return Response({"detail": "Forbidden."}, status=403)
+
+        try:
+            appointment = Appointment.objects.get(pk=appointment_id)
+        except Appointment.DoesNotExist:
+            return Response({"detail": "Cita no encontrada."}, status=404)
+
+        # Accept "files" (multiple) or legacy "file" (single)
+        files = request.FILES.getlist("files") or (
+            [request.FILES["file"]] if "file" in request.FILES else []
+        )
+        if not files:
+            return Response({"detail": "No se proporcionó archivo."}, status=400)
+
+        report, _ = Report.objects.get_or_create(appointment=appointment)
+
+        if not report.access_code:
+            report.access_code = generate_report_access_code()
+            report.save(update_fields=["access_code"])
+
+        notify_patient = request.data.get("notify_patient") in ("true", "True", "1", True)
+
+        created = []
+        for f in files:
+            # Read now, synchronously: request.FILES' underlying temp
+            # file/buffer isn't guaranteed to survive past this request, but
+            # the background thread that actually stores the file does.
+            content = f.read()
+            rf = ReportFile.objects.create(
+                report=report,
+                original_name=f.name,
+                status=ReportFile.Status.PENDING,
+            )
+            threading.Thread(
+                target=_store_report_file,
+                args=(rf.pk, content, f.name, notify_patient, request),
+                daemon=True,
+            ).start()
+            created.append(ReportFileSerializer(rf).data | {"url": None})
 
         log_action(
             request,
@@ -587,7 +627,7 @@ class ReportUploadView(APIView):
         )
 
         return Response({
-            "uploaded_at": timezone.localtime(report.uploaded_at).strftime("%H:%M"),
+            "uploaded_at": timezone.localtime(timezone.now()).strftime("%H:%M"),
             "files": created,
         })
 

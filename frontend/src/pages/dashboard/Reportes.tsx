@@ -217,15 +217,19 @@ export default function Reportes() {
                         <td className="px-5 py-3">
                           {files.length === 0 ? (
                             <span className="text-text/40">—</span>
-                          ) : files.length === 1 ? (
+                          ) : files.length === 1 && files[0].url ? (
                             <a
-                              href={files[0].url ?? "#"}
+                              href={files[0].url}
                               target="_blank"
                               rel="noreferrer"
                               className="text-[#3f6e7a] underline font-quicksand text-sm"
                             >
                               Ver archivo
                             </a>
+                          ) : files.length === 1 ? (
+                            <span className="text-secondary font-quicksand text-sm">
+                              {files[0].status === "failed" ? "Error al subir" : "Procesando…"}
+                            </span>
                           ) : (
                             <span className="text-[#3f6e7a] font-quicksand text-sm">
                               {files.length} archivos

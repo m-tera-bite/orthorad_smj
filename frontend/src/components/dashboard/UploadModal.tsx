@@ -6,6 +6,7 @@ export interface ReportFile {
   original_name: string;
   url: string | null;
   uploaded_at: string;
+  status: "pending" | "stored" | "failed";
 }
 
 export interface AppointmentOption {
@@ -25,12 +26,21 @@ interface Props {
   onFileDeleted?: (appointmentId: number, fileId: number) => void;
 }
 
+type FileStatus = "pending" | "uploading" | "done" | "error";
+
+interface PendingUpload {
+  file: File;
+  status: FileStatus;
+  progress: number; // 0-100
+  error?: string;
+}
+
 export default function UploadModal({ appointments, onClose, onUploaded, onFileDeleted }: Props) {
   const [selectedId, setSelectedId] = useState<number | "">(appointments[0]?.id ?? "");
   const [existingFiles, setExistingFiles] = useState<ReportFile[]>(
     appointments[0]?.existingFiles ?? []
   );
-  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [pendingFiles, setPendingFiles] = useState<PendingUpload[]>([]);
   const [notifyPatient, setNotifyPatient] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -60,31 +70,67 @@ export default function UploadModal({ appointments, onClose, onUploaded, onFileD
     }
   }
 
+  function updatePending(index: number, patch: Partial<PendingUpload>) {
+    setPendingFiles((prev) => prev.map((p, i) => (i === index ? { ...p, ...patch } : p)));
+  }
+
   async function handleUpload() {
     if (!selectedId || pendingFiles.length === 0) return;
     setUploading(true);
     setError(null);
-    try {
-      const form = new FormData();
-      for (const f of pendingFiles) form.append("files", f);
-      form.append("notify_patient", String(notifyPatient));
-      const { data } = await api.post(
-        `/appointments/${selectedId}/report/upload/`,
-        form,
-        { headers: { "Content-Type": "multipart/form-data" } }
-      );
-      onUploaded(Number(selectedId), data.uploaded_at, data.files);
+
+    // Upload sequentially (not Promise.all): the backend treats the first
+    // successful upload for a report as the trigger for the "results ready"
+    // notification email. Concurrent requests could race and double-send it.
+    let lastUploadedAt: string | null = null;
+    const newFiles: ReportFile[] = [];
+    let anyFailed = false;
+
+    for (let i = 0; i < pendingFiles.length; i++) {
+      if (pendingFiles[i].status === "done") continue; // retry: skip already-succeeded files
+
+      updatePending(i, { status: "uploading", progress: 0, error: undefined });
+      try {
+        const form = new FormData();
+        form.append("files", pendingFiles[i].file);
+        form.append("notify_patient", String(notifyPatient));
+        const { data } = await api.post(
+          `/appointments/${selectedId}/report/upload/`,
+          form,
+          {
+            headers: { "Content-Type": "multipart/form-data" },
+            onUploadProgress: (evt) => {
+              const progress = evt.total ? Math.round((evt.loaded / evt.total) * 100) : 0;
+              updatePending(i, { progress });
+            },
+          }
+        );
+        updatePending(i, { status: "done", progress: 100 });
+        lastUploadedAt = data.uploaded_at;
+        newFiles.push(...data.files);
+      } catch {
+        anyFailed = true;
+        updatePending(i, { status: "error", error: "No se pudo subir." });
+      }
+    }
+
+    setUploading(false);
+    if (anyFailed) {
+      setError("Algunos archivos no se pudieron subir. Reintenta para volver a intentarlo.");
+      return;
+    }
+    if (lastUploadedAt) {
+      onUploaded(Number(selectedId), lastUploadedAt, newFiles);
       onClose();
-    } catch {
-      setError("No se pudo subir el archivo. Intenta de nuevo.");
-    } finally {
-      setUploading(false);
     }
   }
 
   function addFiles(list: FileList | null) {
     if (!list) return;
-    setPendingFiles((prev) => [...prev, ...Array.from(list)]);
+    setPendingFiles((prev) => [
+      ...prev,
+      ...Array.from(list).map((file) => ({ file, status: "pending" as FileStatus, progress: 0 })),
+    ]);
   }
 
   function removePending(index: number) {
@@ -101,6 +147,8 @@ export default function UploadModal({ appointments, onClose, onUploaded, onFileD
   const current = appointments.find((a) => a.id === selectedId);
   const hasExisting = existingFiles.length > 0;
   const hasPending = pendingFiles.length > 0;
+  const hasErrors = pendingFiles.some((p) => p.status === "error");
+  const remainingCount = pendingFiles.filter((p) => p.status !== "done").length;
 
   return (
     <div
@@ -178,7 +226,17 @@ export default function UploadModal({ appointments, onClose, onUploaded, onFileD
                     <span className="flex-1 font-quicksand text-sm text-text truncate min-w-0">
                       {f.original_name}
                     </span>
-                    {f.url && (
+                    {f.status === "pending" && (
+                      <span className="text-secondary font-quicksand text-xs flex-shrink-0">
+                        Procesando…
+                      </span>
+                    )}
+                    {f.status === "failed" && (
+                      <span className="text-red-500 font-quicksand text-xs flex-shrink-0">
+                        Error al subir
+                      </span>
+                    )}
+                    {f.status === "stored" && f.url && (
                       <a
                         href={f.url}
                         target="_blank"
@@ -250,18 +308,49 @@ export default function UploadModal({ appointments, onClose, onUploaded, onFileD
             {/* Pending file queue */}
             {hasPending && (
               <ul className="mt-2 space-y-1">
-                {pendingFiles.map((f, i) => (
-                  <li key={i} className="flex items-center gap-2 bg-secondary/5 rounded-[8px] px-3 py-2">
-                    <span className="flex-1 font-quicksand text-sm text-text truncate min-w-0">{f.name}</span>
-                    <span className="text-text/40 font-quicksand text-xs flex-shrink-0">
-                      {(f.size / 1024).toFixed(0)} KB
-                    </span>
-                    <button
-                      onClick={() => removePending(i)}
-                      className="text-text/40 hover:text-red-500 transition-colors flex-shrink-0 text-base leading-none"
-                    >
-                      ×
-                    </button>
+                {pendingFiles.map((p, i) => (
+                  <li key={i} className="bg-secondary/5 rounded-[8px] px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <span className="flex-1 font-quicksand text-sm text-text truncate min-w-0">
+                        {p.file.name}
+                      </span>
+                      {p.status === "pending" && (
+                        <span className="text-text/40 font-quicksand text-xs flex-shrink-0">
+                          {(p.file.size / 1024).toFixed(0)} KB
+                        </span>
+                      )}
+                      {p.status === "uploading" && (
+                        <span className="text-secondary font-quicksand text-xs flex-shrink-0">
+                          {p.progress}%
+                        </span>
+                      )}
+                      {p.status === "done" && (
+                        <svg className="text-secondary flex-shrink-0" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <polyline points="20 6 9 17 4 12" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
+                      {p.status === "error" && (
+                        <span className="text-red-500 font-quicksand text-xs flex-shrink-0">
+                          Error
+                        </span>
+                      )}
+                      {p.status !== "uploading" && (
+                        <button
+                          onClick={() => removePending(i)}
+                          className="text-text/40 hover:text-red-500 transition-colors flex-shrink-0 text-base leading-none"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                    {p.status === "uploading" && (
+                      <div className="mt-1.5 h-1 bg-secondary/15 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-secondary transition-all duration-150"
+                          style={{ width: `${p.progress}%` }}
+                        />
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -308,6 +397,8 @@ export default function UploadModal({ appointments, onClose, onUploaded, onFileD
               >
                 {uploading
                   ? "Subiendo..."
+                  : hasErrors
+                  ? `Reintentar${remainingCount > 1 ? ` (${remainingCount})` : ""}`
                   : `Subir${pendingFiles.length > 1 ? ` (${pendingFiles.length})` : ""}`}
               </button>
             )}
