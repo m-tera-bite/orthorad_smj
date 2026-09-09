@@ -42,9 +42,7 @@ class PartnerPortalTestCase(APITestCase):
         self.appt_none = make_appointment(self.service, None)
 
         self.report_a = Report.objects.create(appointment=self.appt_a)
-        ReportFile.objects.create(
-            report=self.report_a, original_name="rx.pdf", status=ReportFile.Status.STORED
-        )
+        ReportFile.objects.create(report=self.report_a, original_name="rx.pdf")
 
     # ---------------- scoping ----------------
 

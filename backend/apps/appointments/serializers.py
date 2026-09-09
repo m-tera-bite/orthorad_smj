@@ -27,22 +27,11 @@ class ReportFileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ReportFile
-        fields = ["id", "original_name", "url", "uploaded_at", "status"]
+        fields = ["id", "original_name", "url", "uploaded_at"]
 
 
 class ReportSerializer(serializers.ModelSerializer):
-    files = serializers.SerializerMethodField()
-
-    def get_files(self, obj):
-        # Staff see every file regardless of status (pending/failed included,
-        # so a stuck upload is visible); everyone else (partner portal via
-        # this serializer, and the public guest lookup which queries
-        # ReportFile directly) only ever sees files that finished storing —
-        # a pending/failed row has no real, retrievable URL yet.
-        request = self.context.get("request")
-        is_staff = bool(request and request.user.is_authenticated and request.user.is_staff)
-        qs = obj.files.all() if is_staff else obj.files.filter(status=ReportFile.Status.STORED)
-        return ReportFileSerializer(qs, many=True, context=self.context).data
+    files = ReportFileSerializer(many=True, read_only=True)
 
     class Meta:
         model = Report
@@ -60,7 +49,7 @@ class AppointmentSerializer(serializers.ModelSerializer):
 
     def get_report(self, obj):
         try:
-            return ReportSerializer(obj.report, context=self.context).data
+            return ReportSerializer(obj.report).data
         except Report.DoesNotExist:
             return None
 

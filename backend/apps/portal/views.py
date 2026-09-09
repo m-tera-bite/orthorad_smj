@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
-from apps.appointments.models import Report, ReportFile
+from apps.appointments.models import Report
 from apps.appointments.serializers import ReportFileSerializer
 from apps.audit.models import AuditLog
 from apps.audit.services import log_action
@@ -90,8 +90,6 @@ class PortalReportLookupView(APIView):
                 "service_name": appointment.service.name,
                 "scheduled_at": appointment.scheduled_at,
                 "uploaded_at": report.uploaded_at,
-                "files": ReportFileSerializer(
-                    report.files.filter(status=ReportFile.Status.STORED), many=True
-                ).data,
+                "files": ReportFileSerializer(report.files.all(), many=True).data,
             }
         )
