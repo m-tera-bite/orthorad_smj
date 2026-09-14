@@ -23,7 +23,10 @@ export interface PendingUpload {
   reportFileId?: number;
 }
 
-export type JobPhase = "idle" | "running" | "success" | "error";
+// "queued" = staged but waiting for the currently running job to finish —
+// uploads are still processed one at a time (see runJob), so a second
+// upload doesn't need to be blocked, only queued.
+export type JobPhase = "queued" | "running" | "success" | "error";
 
 export interface UploadJob {
   appointmentId: number;
@@ -36,9 +39,14 @@ export interface UploadJob {
 
 type OnUploaded = (appointmentId: number, uploadedAt: string, newFiles: ReportFile[]) => void;
 
+interface ToastEntry {
+  id: number;
+  message: string;
+}
+
 interface UploadContextType {
-  job: UploadJob | null;
-  toast: { message: string } | null;
+  jobs: UploadJob[];
+  toasts: ToastEntry[];
   startJob: (
     appointmentId: number,
     appointmentLabel: string,
@@ -46,52 +54,51 @@ interface UploadContextType {
     notifyPatient: boolean,
     onUploaded: OnUploaded
   ) => void;
-  addFilesToJob: (files: File[]) => void;
-  removeFileFromJob: (index: number) => void;
-  setNotifyPatient: (value: boolean) => void;
-  runJob: () => void;
-  retryFailed: () => void;
-  cancelJob: () => void;
-  dismissJob: () => void;
-  minimizeJob: () => void;
-  reopenJob: () => void;
-  canStartJobFor: (appointmentId: number) => boolean;
-  dismissToast: () => void;
+  addFilesToJob: (appointmentId: number, files: File[]) => void;
+  removeFileFromJob: (appointmentId: number, index: number) => void;
+  setNotifyPatient: (appointmentId: number, value: boolean) => void;
+  retryFailed: (appointmentId: number) => void;
+  cancelJob: (appointmentId: number) => void;
+  dismissJob: (appointmentId: number) => void;
+  minimizeJob: (appointmentId: number) => void;
+  reopenJob: (appointmentId: number) => void;
+  dismissToast: (id: number) => void;
 }
 
 const UploadContext = createContext<UploadContextType | null>(null);
 
 export function UploadProvider({ children }: { children: ReactNode }) {
-  const [job, setJob] = useState<UploadJob | null>(null);
-  const [toast, setToast] = useState<{ message: string } | null>(null);
+  const [jobs, setJobs] = useState<UploadJob[]>([]);
+  const [toasts, setToasts] = useState<ToastEntry[]>([]);
 
-  // Mirrors `job` synchronously (state updates are deferred, this isn't) so
-  // the async upload loop in runJob always reads the latest queue/appointment
-  // — including files appended mid-run — instead of a stale closure.
-  const jobRef = useRef<UploadJob | null>(null);
+  // Mirrors `jobs` synchronously (state updates are deferred, this isn't) so
+  // the async upload loop in runJob always reads the latest queue —
+  // including files appended mid-run — instead of a stale closure.
+  const jobsRef = useRef<UploadJob[]>([]);
+  // Only one job actually transfers bytes at a time (see runJob/queue
+  // advance below), so a single AbortController/cancel-target is enough —
+  // no need for one per job.
   const abortControllerRef = useRef<AbortController | null>(null);
-  const canceledRef = useRef(false);
-  const onUploadedRef = useRef<OnUploaded | null>(null);
+  const canceledAppointmentRef = useRef<number | null>(null);
+  const onUploadedRefs = useRef<Map<number, OnUploaded>>(new Map());
+  const toastIdRef = useRef(0);
 
-  function setJobBoth(updater: (prev: UploadJob | null) => UploadJob | null) {
-    setJob((prev) => {
+  function setJobsBoth(updater: (prev: UploadJob[]) => UploadJob[]) {
+    setJobs((prev) => {
       const next = updater(prev);
-      jobRef.current = next;
+      jobsRef.current = next;
       return next;
     });
   }
 
-  function updateFile(index: number, patch: Partial<PendingUpload>) {
-    setJobBoth((prev) =>
-      prev && {
-        ...prev,
-        files: prev.files.map((f, i) => (i === index ? { ...f, ...patch } : f)),
-      }
+  function updateFile(appointmentId: number, index: number, patch: Partial<PendingUpload>) {
+    setJobsBoth((prev) =>
+      prev.map((j) =>
+        j.appointmentId === appointmentId
+          ? { ...j, files: j.files.map((f, i) => (i === index ? { ...f, ...patch } : f)) }
+          : j
+      )
     );
-  }
-
-  function canStartJobFor(appointmentId: number) {
-    return !(job && job.phase === "running" && job.appointmentId !== appointmentId);
   }
 
   function startJob(
@@ -101,54 +108,75 @@ export function UploadProvider({ children }: { children: ReactNode }) {
     notifyPatient: boolean,
     onUploaded: OnUploaded
   ) {
-    if (!canStartJobFor(appointmentId)) return;
-    onUploadedRef.current = onUploaded;
-    setJobBoth(() => ({
-      appointmentId,
-      appointmentLabel,
-      notifyPatient,
-      files: files.map((file) => ({ file, status: "pending" as PendingStatus, progress: 0 })),
-      phase: "idle",
-      minimized: false,
-    }));
+    onUploadedRefs.current.set(appointmentId, onUploaded);
+    const alreadyRunning = jobsRef.current.some((j) => j.phase === "running");
+    setJobsBoth((prev) => [
+      // drop any stale finished/errored job left over for this appointment
+      ...prev.filter((j) => j.appointmentId !== appointmentId),
+      {
+        appointmentId,
+        appointmentLabel,
+        notifyPatient,
+        files: files.map((file) => ({ file, status: "pending" as PendingStatus, progress: 0 })),
+        phase: alreadyRunning ? "queued" : "running",
+        minimized: false,
+      },
+    ]);
+    if (!alreadyRunning) runJob(appointmentId);
   }
 
-  function addFilesToJob(files: File[]) {
-    setJobBoth(
-      (prev) =>
-        prev && {
-          ...prev,
-          files: [
-            ...prev.files,
-            ...files.map((file) => ({ file, status: "pending" as PendingStatus, progress: 0 })),
-          ],
-        }
+  function addFilesToJob(appointmentId: number, files: File[]) {
+    setJobsBoth((prev) =>
+      prev.map((j) =>
+        j.appointmentId === appointmentId
+          ? {
+              ...j,
+              files: [
+                ...j.files,
+                ...files.map((file) => ({ file, status: "pending" as PendingStatus, progress: 0 })),
+              ],
+            }
+          : j
+      )
     );
   }
 
-  function removeFileFromJob(index: number) {
-    setJobBoth((prev) => prev && { ...prev, files: prev.files.filter((_, i) => i !== index) });
+  function removeFileFromJob(appointmentId: number, index: number) {
+    setJobsBoth((prev) =>
+      prev.map((j) => (j.appointmentId === appointmentId ? { ...j, files: j.files.filter((_, i) => i !== index) } : j))
+    );
   }
 
-  function setNotifyPatient(value: boolean) {
-    setJobBoth((prev) => prev && { ...prev, notifyPatient: value });
+  function setNotifyPatient(appointmentId: number, value: boolean) {
+    setJobsBoth((prev) =>
+      prev.map((j) => (j.appointmentId === appointmentId ? { ...j, notifyPatient: value } : j))
+    );
   }
 
-  function minimizeJob() {
-    setJobBoth((prev) => prev && { ...prev, minimized: true });
+  function minimizeJob(appointmentId: number) {
+    setJobsBoth((prev) =>
+      prev.map((j) => (j.appointmentId === appointmentId ? { ...j, minimized: true } : j))
+    );
   }
 
-  function reopenJob() {
-    setJobBoth((prev) => prev && { ...prev, minimized: false });
+  function reopenJob(appointmentId: number) {
+    setJobsBoth((prev) =>
+      prev.map((j) => (j.appointmentId === appointmentId ? { ...j, minimized: false } : j))
+    );
   }
 
-  function dismissJob() {
-    onUploadedRef.current = null;
-    setJobBoth(() => null);
+  function dismissJob(appointmentId: number) {
+    onUploadedRefs.current.delete(appointmentId);
+    setJobsBoth((prev) => prev.filter((j) => j.appointmentId !== appointmentId));
   }
 
-  function dismissToast() {
-    setToast(null);
+  function pushToast(message: string) {
+    const id = ++toastIdRef.current;
+    setToasts((prev) => [...prev, { id, message }]);
+  }
+
+  function dismissToast(id: number) {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
   }
 
   // Uploads a single pending file: asks Django for either a direct-to-GCS
@@ -173,11 +201,11 @@ export function UploadProvider({ children }: { children: ReactNode }) {
       },
       { signal }
     );
-    updateFile(index, { reportFileId: initData.report_file_id });
+    updateFile(appointmentId, index, { reportFileId: initData.report_file_id });
 
     const onUploadProgress = (evt: { loaded: number; total?: number }) => {
       const progress = evt.total ? Math.round((evt.loaded / evt.total) * 100) : 0;
-      updateFile(index, { progress });
+      updateFile(appointmentId, index, { progress });
     };
 
     if (initData.mode === "gcs") {
@@ -210,13 +238,9 @@ export function UploadProvider({ children }: { children: ReactNode }) {
     return data;
   }
 
-  async function runJob() {
-    if (!jobRef.current) return;
-    setJobBoth((prev) => prev && { ...prev, phase: "running" });
-
+  async function runJob(appointmentId: number) {
     const controller = new AbortController();
     abortControllerRef.current = controller;
-    canceledRef.current = false;
 
     let lastUploadedAt: string | null = null;
     const newFiles: ReportFile[] = [];
@@ -225,102 +249,132 @@ export function UploadProvider({ children }: { children: ReactNode }) {
     // Upload sequentially, not in parallel: the backend treats the first
     // stored file for a report as the trigger for the "results ready"
     // notification email, and there's no reason to fire several finalize
-    // calls at once anyway. Read the queue fresh via jobRef each pass so
+    // calls at once anyway. Read the queue fresh via jobsRef each pass so
     // files appended mid-run (addFilesToJob) are picked up.
     let i = 0;
-    while (jobRef.current && i < jobRef.current.files.length) {
-      if (canceledRef.current) break;
-      const pending = jobRef.current.files[i];
+    while (true) {
+      const currentJob = jobsRef.current.find((j) => j.appointmentId === appointmentId);
+      if (!currentJob || i >= currentJob.files.length) break;
+      if (canceledAppointmentRef.current === appointmentId) break;
+      const pending = currentJob.files[i];
       if (pending.status === "done") {
         i++;
         continue;
       }
 
-      const appointmentId = jobRef.current.appointmentId;
-      const notifyPatient = jobRef.current.notifyPatient;
-      updateFile(i, { status: "uploading", progress: 0, error: undefined });
+      updateFile(appointmentId, i, { status: "uploading", progress: 0, error: undefined });
       try {
-        const finalized = await uploadOne(appointmentId, notifyPatient, i, pending, controller.signal);
-        updateFile(i, { status: "done", progress: 100 });
+        const finalized = await uploadOne(
+          appointmentId,
+          currentJob.notifyPatient,
+          i,
+          pending,
+          controller.signal
+        );
+        updateFile(appointmentId, i, { status: "done", progress: 100 });
         lastUploadedAt = finalized.uploaded_at;
         newFiles.push(finalized);
       } catch (err) {
-        if (canceledRef.current || axios.isCancel(err)) {
-          updateFile(i, { status: "canceled" });
+        if (canceledAppointmentRef.current === appointmentId || axios.isCancel(err)) {
+          updateFile(appointmentId, i, { status: "canceled" });
         } else {
           anyFailed = true;
-          updateFile(i, { status: "error", error: "No se pudo subir." });
+          updateFile(appointmentId, i, { status: "error", error: "No se pudo subir." });
         }
       }
       i++;
     }
 
     abortControllerRef.current = null;
+    const wasCanceled = canceledAppointmentRef.current === appointmentId;
+    if (wasCanceled) canceledAppointmentRef.current = null;
 
-    if (canceledRef.current) {
-      setJobBoth((prev) => prev && { ...prev, phase: "error" });
-      return;
-    }
+    setJobsBoth((prev) =>
+      prev.map((j) =>
+        j.appointmentId === appointmentId ? { ...j, phase: wasCanceled || anyFailed ? "error" : "success" } : j
+      )
+    );
 
-    setJobBoth((prev) => prev && { ...prev, phase: anyFailed ? "error" : "success" });
-
-    if (!anyFailed && lastUploadedAt) {
-      const finished = jobRef.current;
+    if (!wasCanceled && !anyFailed && lastUploadedAt) {
+      const finished = jobsRef.current.find((j) => j.appointmentId === appointmentId);
       if (finished) {
-        onUploadedRef.current?.(finished.appointmentId, lastUploadedAt, newFiles);
+        onUploadedRefs.current.get(appointmentId)?.(appointmentId, lastUploadedAt, newFiles);
         if (finished.minimized) {
-          setToast({ message: `Resultados de ${finished.appointmentLabel} subidos correctamente.` });
+          pushToast(`Resultados de ${finished.appointmentLabel} subidos correctamente.`);
         }
       }
     }
+
+    startNextQueuedJob();
   }
 
-  function retryFailed() {
-    setJobBoth(
-      (prev) =>
-        prev && {
-          ...prev,
-          files: prev.files.map((f) =>
-            f.status === "error" || f.status === "canceled"
-              ? { ...f, status: "pending" as PendingStatus, progress: 0, error: undefined }
-              : f
-          ),
-        }
+  function startNextQueuedJob() {
+    const next = jobsRef.current.find((j) => j.phase === "queued");
+    if (!next) return;
+    setJobsBoth((prev) =>
+      prev.map((j) => (j.appointmentId === next.appointmentId ? { ...j, phase: "running" } : j))
     );
-    runJob();
+    runJob(next.appointmentId);
   }
 
-  function cancelJob() {
-    abortControllerRef.current?.abort();
-    canceledRef.current = true;
-    setJobBoth(
-      (prev) =>
-        prev && {
-          ...prev,
-          phase: "error",
-          files: prev.files.map((f) =>
-            f.status === "uploading" || f.status === "pending" ? { ...f, status: "canceled" as PendingStatus } : f
-          ),
-        }
+  function retryFailed(appointmentId: number) {
+    const alreadyRunning = jobsRef.current.some((j) => j.phase === "running");
+    setJobsBoth((prev) =>
+      prev.map((j) =>
+        j.appointmentId === appointmentId
+          ? {
+              ...j,
+              phase: alreadyRunning ? "queued" : "running",
+              files: j.files.map((f) =>
+                f.status === "error" || f.status === "canceled"
+                  ? { ...f, status: "pending" as PendingStatus, progress: 0, error: undefined }
+                  : f
+              ),
+            }
+          : j
+      )
     );
+    if (!alreadyRunning) runJob(appointmentId);
+  }
+
+  function cancelJob(appointmentId: number) {
+    const target = jobsRef.current.find((j) => j.appointmentId === appointmentId);
+    if (!target) return;
+    if (target.phase === "running") {
+      canceledAppointmentRef.current = appointmentId;
+      abortControllerRef.current?.abort();
+    }
+    setJobsBoth((prev) =>
+      prev.map((j) =>
+        j.appointmentId === appointmentId
+          ? {
+              ...j,
+              phase: "error",
+              files: j.files.map((f) =>
+                f.status === "uploading" || f.status === "pending" ? { ...f, status: "canceled" as PendingStatus } : f
+              ),
+            }
+          : j
+      )
+    );
+    // A queued job never started, so canceling it doesn't advance/interrupt
+    // anything — the running job (if any) is untouched.
   }
 
   return (
     <UploadContext.Provider
       value={{
-        job,
-        toast,
+        jobs,
+        toasts,
         startJob,
         addFilesToJob,
         removeFileFromJob,
         setNotifyPatient,
-        runJob,
         retryFailed,
         cancelJob,
         dismissJob,
         minimizeJob,
         reopenJob,
-        canStartJobFor,
         dismissToast,
       }}
     >

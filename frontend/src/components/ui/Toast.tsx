@@ -13,7 +13,7 @@ export default function Toast({ message, onDismiss, durationMs = 4000 }: Props) 
   }, [onDismiss, durationMs]);
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 bg-background-alt rounded-[10px] shadow-xl px-4 py-3 flex items-center gap-3 max-w-sm">
+    <div className="bg-background-alt rounded-[10px] shadow-xl px-4 py-3 flex items-center gap-3 max-w-sm">
       <svg className="text-secondary flex-shrink-0" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <circle cx="12" cy="12" r="10" opacity="0.15" fill="currentColor" stroke="none" />
         <polyline points="7 12.5 10.5 16 17 9" strokeLinecap="round" strokeLinejoin="round" />

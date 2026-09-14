@@ -24,17 +24,15 @@ interface Props {
 
 export default function UploadModal({ appointments, onClose, onUploaded, onFileDeleted }: Props) {
   const {
-    job,
+    jobs,
     startJob,
     addFilesToJob,
     removeFileFromJob,
     setNotifyPatient: setJobNotifyPatient,
-    runJob,
     retryFailed,
     minimizeJob,
     reopenJob,
     dismissJob,
-    canStartJobFor,
   } = useUpload();
 
   const [selectedId, setSelectedId] = useState<number | "">(appointments[0]?.id ?? "");
@@ -48,19 +46,23 @@ export default function UploadModal({ appointments, onClose, onUploaded, onFileD
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const isJobForSelected = !!job && job.appointmentId === selectedId;
+  const job = jobs.find((j) => j.appointmentId === selectedId) ?? null;
+  const isJobForSelected = !!job;
+  // Another appointment's upload is currently transferring bytes — starting
+  // this one won't be blocked, it'll just queue behind it.
+  const runningElsewhere = jobs.find((j) => j.phase === "running" && j.appointmentId !== selectedId);
 
   // Reopening the modal (e.g. from the minimized bar) onto a job already in
   // progress should clear its minimized flag exactly once, on mount.
   useEffect(() => {
-    if (job && job.appointmentId === selectedId) reopenJob();
+    if (job) reopenJob(job.appointmentId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     const appt = appointments.find((a) => a.id === selectedId);
     setExistingFiles(appt?.existingFiles ?? []);
-    if (!(job && job.appointmentId === selectedId)) {
+    if (!isJobForSelected) {
       setDraftFiles([]);
       setDraftNotifyPatient(false);
     }
@@ -76,10 +78,9 @@ export default function UploadModal({ appointments, onClose, onUploaded, onFileD
   // first render and close itself immediately.
   const prevPhaseRef = useRef<JobPhase | null>(null);
   useEffect(() => {
-    const isCurrentJob = job && job.appointmentId === selectedId;
     const prevPhase = prevPhaseRef.current;
-    prevPhaseRef.current = isCurrentJob ? job.phase : null;
-    if (isCurrentJob && prevPhase === "running" && job.phase === "success") {
+    prevPhaseRef.current = job ? job.phase : null;
+    if (job && prevPhase === "running" && job.phase === "success") {
       onClose();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -100,49 +101,46 @@ export default function UploadModal({ appointments, onClose, onUploaded, onFileD
     }
   }
 
-  const pendingFiles: PendingUpload[] = isJobForSelected
-    ? job!.files
+  const pendingFiles: PendingUpload[] = job
+    ? job.files
     : draftFiles.map((file) => ({ file, status: "pending", progress: 0 }));
-  const notifyPatient = isJobForSelected ? job!.notifyPatient : draftNotifyPatient;
-  const uploading = isJobForSelected && job!.phase === "running";
-  const blockedByOtherJob = !isJobForSelected && !canStartJobFor(Number(selectedId) || -1);
+  const notifyPatient = job ? job.notifyPatient : draftNotifyPatient;
+  const uploading = job?.phase === "running";
+  const isQueued = job?.phase === "queued";
 
   function handleNotifyChange(value: boolean) {
-    if (isJobForSelected) setJobNotifyPatient(value);
+    if (job) setJobNotifyPatient(job.appointmentId, value);
     else setDraftNotifyPatient(value);
   }
 
   function addFiles(list: FileList | null) {
     if (!list) return;
     const files = Array.from(list);
-    if (isJobForSelected) addFilesToJob(files);
+    if (job) addFilesToJob(job.appointmentId, files);
     else setDraftFiles((prev) => [...prev, ...files]);
   }
 
   function removePending(index: number) {
-    if (isJobForSelected) removeFileFromJob(index);
+    if (job) removeFileFromJob(job.appointmentId, index);
     else setDraftFiles((prev) => prev.filter((_, i) => i !== index));
   }
 
   function handleUpload() {
     if (!selectedId || pendingFiles.length === 0) return;
-    if (isJobForSelected) {
-      if (hasErrors) retryFailed();
-      else if (job!.phase !== "running") runJob();
+    if (job) {
+      if (hasErrors) retryFailed(job.appointmentId);
     } else {
-      if (blockedByOtherJob) return;
       const current = appointments.find((a) => a.id === selectedId);
       startJob(Number(selectedId), current?.patient_name ?? "la cita", draftFiles, draftNotifyPatient, onUploaded);
-      runJob();
       setDraftFiles([]);
     }
   }
 
   function handleCloseOrMinimize() {
-    if (isJobForSelected) {
-      const hasUnresolved = job!.files.some((f) => f.status === "error" || f.status === "canceled");
-      if (job!.phase === "running" || hasUnresolved) minimizeJob();
-      else dismissJob();
+    if (job) {
+      const hasUnresolved = job.files.some((f) => f.status === "error" || f.status === "canceled");
+      if (job.phase === "running" || job.phase === "queued" || hasUnresolved) minimizeJob(job.appointmentId);
+      else dismissJob(job.appointmentId);
     }
     onClose();
   }
@@ -173,9 +171,9 @@ export default function UploadModal({ appointments, onClose, onUploaded, onFileD
             {isSingle ? "Gestionar Archivos" : "Subir Resultado"}
           </h2>
           <div className="flex items-center gap-3">
-            {uploading && (
+            {(uploading || isQueued) && (
               <button
-                onClick={() => { minimizeJob(); onClose(); }}
+                onClick={() => { minimizeJob(job!.appointmentId); onClose(); }}
                 title="Minimizar"
                 className="text-alternative hover:text-white transition-colors text-lg leading-none"
               >
@@ -406,10 +404,15 @@ export default function UploadModal({ appointments, onClose, onUploaded, onFileD
           )}
 
           {error && <p className="text-red-600 text-sm font-quicksand">{error}</p>}
-          {blockedByOtherJob && job && (
+          {isQueued && (
+            <p className="text-secondary text-sm font-quicksand">
+              En cola — se iniciará en cuanto termine la subida en curso.
+            </p>
+          )}
+          {!isJobForSelected && runningElsewhere && hasPending && (
             <p className="text-amber-600 text-sm font-quicksand">
-              Ya hay una subida en curso para {job.appointmentLabel}. Espera a que termine (o
-              cancélala desde la barra inferior) para iniciar esta.
+              Ya hay una subida en curso para {runningElsewhere.appointmentLabel}. Esta se agregará
+              a la cola y comenzará automáticamente cuando termine.
             </p>
           )}
 
@@ -424,13 +427,13 @@ export default function UploadModal({ appointments, onClose, onUploaded, onFileD
             {hasPending && (
               <button
                 onClick={handleUpload}
-                disabled={!selectedId || uploading || blockedByOtherJob}
+                disabled={!selectedId || uploading || (isQueued && !hasErrors)}
                 className="flex-1 bg-action-dark text-white py-2.5 rounded-[10px] font-quicksand font-semibold text-sm hover:bg-action-dark/80 transition-colors disabled:opacity-50"
               >
                 {uploading
                   ? "Subiendo..."
-                  : blockedByOtherJob
-                  ? "Subida en curso…"
+                  : isQueued && !hasErrors
+                  ? "En cola…"
                   : hasErrors
                   ? `Reintentar${remainingCount > 1 ? ` (${remainingCount})` : ""}`
                   : `Subir${pendingFiles.length > 1 ? ` (${pendingFiles.length})` : ""}`}

@@ -81,7 +81,7 @@ export default function DashboardShell() {
 function DashboardShellInner() {
   const { logout } = useAuth();
   const navigate = useNavigate();
-  const { toast, dismissToast } = useUpload();
+  const { toasts, dismissToast } = useUpload();
 
   return (
     <div className="flex h-screen overflow-hidden bg-background font-quicksand">
@@ -162,7 +162,11 @@ function DashboardShellInner() {
       <Outlet />
 
       <UploadMiniBar onExpand={(appointmentId) => navigate(`/dashboard/reportes?manage=${appointmentId}`)} />
-      {toast && <Toast message={toast.message} onDismiss={dismissToast} />}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col-reverse gap-2">
+        {toasts.map((t) => (
+          <Toast key={t.id} message={t.message} onDismiss={() => dismissToast(t.id)} />
+        ))}
+      </div>
     </div>
   );
 }
