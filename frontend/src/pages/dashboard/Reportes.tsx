@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import api from "../../api/client";
 import UploadModal, { AppointmentOption, ReportFile } from "../../components/dashboard/UploadModal";
 
@@ -44,12 +45,30 @@ export default function Reportes() {
   const [filter, setFilter] = useState<Filter>("todos");
   const [showUpload, setShowUpload] = useState(false);
   const [uploadTarget, setUploadTarget] = useState<number | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   function load() {
     api.get("/appointments/").then(({ data }) => setAppointments(data)).finally(() => setLoading(false));
   }
 
   useEffect(() => { load(); }, []);
+
+  // Reopening the upload modal from the minimized bar routes here with
+  // ?manage=<appointmentId> since this page can target any appointment,
+  // unlike the dashboard's today-only upload modal.
+  useEffect(() => {
+    const manageId = searchParams.get("manage");
+    if (manageId) {
+      setUploadTarget(Number(manageId));
+      setShowUpload(true);
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("manage");
+        return next;
+      }, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const filtered = appointments.filter((a) => {
     const hasFiles = (a.report?.files.length ?? 0) > 0;

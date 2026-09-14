@@ -1,5 +1,8 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { UploadProvider, useUpload } from "../../context/UploadContext";
+import UploadMiniBar from "../dashboard/UploadMiniBar";
+import Toast from "../ui/Toast";
 
 const SHOW_CONFIGURACION = false;
 
@@ -68,8 +71,17 @@ const NAV_ITEMS = [
 ];
 
 export default function DashboardShell() {
+  return (
+    <UploadProvider>
+      <DashboardShellInner />
+    </UploadProvider>
+  );
+}
+
+function DashboardShellInner() {
   const { logout } = useAuth();
   const navigate = useNavigate();
+  const { toast, dismissToast } = useUpload();
 
   return (
     <div className="flex h-screen overflow-hidden bg-background font-quicksand">
@@ -148,6 +160,9 @@ export default function DashboardShell() {
 
       {/* Page content rendered by nested route */}
       <Outlet />
+
+      <UploadMiniBar onExpand={(appointmentId) => navigate(`/dashboard/reportes?manage=${appointmentId}`)} />
+      {toast && <Toast message={toast.message} onDismiss={dismissToast} />}
     </div>
   );
 }

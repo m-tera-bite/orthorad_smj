@@ -1,14 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import axios from "axios";
 import api from "../../api/client";
+import { useUpload, PendingUpload } from "../../context/UploadContext";
 
-export interface ReportFile {
-  id: number;
-  original_name: string;
-  url: string | null;
-  uploaded_at: string;
-  status: "pending" | "stored" | "failed";
-}
+export type { ReportFile } from "../../context/UploadContext";
+import type { ReportFile } from "../../context/UploadContext";
 
 export interface AppointmentOption {
   id: number;
@@ -27,38 +22,61 @@ interface Props {
   onFileDeleted?: (appointmentId: number, fileId: number) => void;
 }
 
-type PendingStatus = "pending" | "uploading" | "done" | "error";
-
-interface PendingUpload {
-  file: File;
-  status: PendingStatus;
-  progress: number; // 0-100
-  error?: string;
-  // Carried across retries so a retry reissues/reuses the same ReportFile
-  // row (via the init endpoint's reuse path) instead of creating a new one
-  // — and orphaning the previous attempt's row — every time.
-  reportFileId?: number;
-}
-
 export default function UploadModal({ appointments, onClose, onUploaded, onFileDeleted }: Props) {
+  const {
+    job,
+    startJob,
+    addFilesToJob,
+    removeFileFromJob,
+    setNotifyPatient: setJobNotifyPatient,
+    runJob,
+    retryFailed,
+    minimizeJob,
+    reopenJob,
+    dismissJob,
+    canStartJobFor,
+  } = useUpload();
+
   const [selectedId, setSelectedId] = useState<number | "">(appointments[0]?.id ?? "");
   const [existingFiles, setExistingFiles] = useState<ReportFile[]>(
     appointments[0]?.existingFiles ?? []
   );
-  const [pendingFiles, setPendingFiles] = useState<PendingUpload[]>([]);
-  const [notifyPatient, setNotifyPatient] = useState(false);
+  const [draftFiles, setDraftFiles] = useState<File[]>([]);
+  const [draftNotifyPatient, setDraftNotifyPatient] = useState(false);
   const [dragging, setDragging] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const isJobForSelected = !!job && job.appointmentId === selectedId;
+
+  // Reopening the modal (e.g. from the minimized bar) onto a job already in
+  // progress should clear its minimized flag exactly once, on mount.
+  useEffect(() => {
+    if (job && job.appointmentId === selectedId) reopenJob();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     const appt = appointments.find((a) => a.id === selectedId);
     setExistingFiles(appt?.existingFiles ?? []);
-    setPendingFiles([]);
+    if (!(job && job.appointmentId === selectedId)) {
+      setDraftFiles([]);
+      setDraftNotifyPatient(false);
+    }
     setError(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId, appointments]);
+
+  // Auto-close (not minimize) once a job we're currently displaying finishes
+  // successfully while the modal is open — mirrors the old auto-close-on-
+  // success behavior, without affecting a job finishing while minimized.
+  useEffect(() => {
+    if (job && job.appointmentId === selectedId && job.phase === "success" && !job.minimized) {
+      onClose();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [job?.phase]);
 
   async function handleDelete(fileId: number) {
     if (!selectedId) return;
@@ -75,105 +93,51 @@ export default function UploadModal({ appointments, onClose, onUploaded, onFileD
     }
   }
 
-  function updatePending(index: number, patch: Partial<PendingUpload>) {
-    setPendingFiles((prev) => prev.map((p, i) => (i === index ? { ...p, ...patch } : p)));
-  }
+  const pendingFiles: PendingUpload[] = isJobForSelected
+    ? job!.files
+    : draftFiles.map((file) => ({ file, status: "pending", progress: 0 }));
+  const notifyPatient = isJobForSelected ? job!.notifyPatient : draftNotifyPatient;
+  const uploading = isJobForSelected && job!.phase === "running";
+  const blockedByOtherJob = !isJobForSelected && !canStartJobFor(Number(selectedId) || -1);
 
-  // Uploads a single pending file: asks Django for either a direct-to-GCS
-  // signed URL or (local dev, no bucket configured) a small server URL,
-  // then does the actual transfer, then confirms. Django's own request in
-  // step 1 never carries file bytes, so it stays fast and small regardless
-  // of how large the file itself is.
-  async function uploadOne(index: number, pending: PendingUpload): Promise<ReportFile> {
-    const contentType = pending.file.type || "application/octet-stream";
-    const { data: initData } = await api.post(`/appointments/${selectedId}/report/upload/init/`, {
-      filename: pending.file.name,
-      content_type: contentType,
-      report_file_id: pending.reportFileId ?? null,
-    });
-    updatePending(index, { reportFileId: initData.report_file_id });
-
-    const onUploadProgress = (evt: { loaded: number; total?: number }) => {
-      const progress = evt.total ? Math.round((evt.loaded / evt.total) * 100) : 0;
-      updatePending(index, { progress });
-    };
-
-    if (initData.mode === "gcs") {
-      // Plain axios, deliberately NOT the app's `api` client — this request
-      // goes straight to storage.googleapis.com, a different origin, and
-      // must not carry the app's baseURL prefix or its bearer-token
-      // Authorization header.
-      await axios.put(initData.upload_url, pending.file, {
-        headers: initData.headers,
-        onUploadProgress,
-      });
-      const { data } = await api.post(
-        `/appointments/${selectedId}/report/upload/${initData.report_file_id}/finalize/`,
-        { notify_patient: notifyPatient }
-      );
-      return data;
-    }
-
-    // Local-dev fallback: no GCS bucket configured, upload straight to Django.
-    const form = new FormData();
-    form.append("file", pending.file);
-    form.append("notify_patient", String(notifyPatient));
-    const { data } = await api.post(initData.upload_url, form, {
-      headers: { "Content-Type": "multipart/form-data" },
-      onUploadProgress,
-    });
-    return data;
-  }
-
-  async function handleUpload() {
-    if (!selectedId || pendingFiles.length === 0) return;
-    setUploading(true);
-    setError(null);
-
-    // Upload sequentially, not Promise.all: the backend treats the first
-    // stored file for a report as the trigger for the "results ready"
-    // notification email, and while it's protected against a race, there's
-    // no reason to fire several finalize calls at once anyway.
-    let lastUploadedAt: string | null = null;
-    const newFiles: ReportFile[] = [];
-    let anyFailed = false;
-
-    for (let i = 0; i < pendingFiles.length; i++) {
-      if (pendingFiles[i].status === "done") continue; // retry: skip already-succeeded files
-
-      updatePending(i, { status: "uploading", progress: 0, error: undefined });
-      try {
-        const finalized = await uploadOne(i, pendingFiles[i]);
-        updatePending(i, { status: "done", progress: 100 });
-        lastUploadedAt = finalized.uploaded_at;
-        newFiles.push(finalized);
-      } catch {
-        anyFailed = true;
-        updatePending(i, { status: "error", error: "No se pudo subir." });
-      }
-    }
-
-    setUploading(false);
-    if (anyFailed) {
-      setError("Algunos archivos no se pudieron subir. Reintenta para volver a intentarlo.");
-      return;
-    }
-    if (lastUploadedAt) {
-      onUploaded(Number(selectedId), lastUploadedAt, newFiles);
-      onClose();
-    }
+  function handleNotifyChange(value: boolean) {
+    if (isJobForSelected) setJobNotifyPatient(value);
+    else setDraftNotifyPatient(value);
   }
 
   function addFiles(list: FileList | null) {
     if (!list) return;
-    setPendingFiles((prev) => [
-      ...prev,
-      ...Array.from(list).map((file) => ({ file, status: "pending" as PendingStatus, progress: 0 })),
-    ]);
+    const files = Array.from(list);
+    if (isJobForSelected) addFilesToJob(files);
+    else setDraftFiles((prev) => [...prev, ...files]);
   }
 
   function removePending(index: number) {
-    setPendingFiles((prev) => prev.filter((_, i) => i !== index));
+    if (isJobForSelected) removeFileFromJob(index);
+    else setDraftFiles((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function handleUpload() {
+    if (!selectedId || pendingFiles.length === 0) return;
+    if (isJobForSelected) {
+      if (hasErrors) retryFailed();
+      else if (job!.phase !== "running") runJob();
+    } else {
+      if (blockedByOtherJob) return;
+      const current = appointments.find((a) => a.id === selectedId);
+      startJob(Number(selectedId), current?.patient_name ?? "la cita", draftFiles, draftNotifyPatient, onUploaded);
+      runJob();
+      setDraftFiles([]);
+    }
+  }
+
+  function handleCloseOrMinimize() {
+    if (isJobForSelected) {
+      const hasUnresolved = job!.files.some((f) => f.status === "error" || f.status === "canceled");
+      if (job!.phase === "running" || hasUnresolved) minimizeJob();
+      else dismissJob();
+    }
+    onClose();
   }
 
   function handleDrop(e: React.DragEvent) {
@@ -186,14 +150,14 @@ export default function UploadModal({ appointments, onClose, onUploaded, onFileD
   const current = appointments.find((a) => a.id === selectedId);
   const hasExisting = existingFiles.length > 0;
   const hasPending = pendingFiles.length > 0;
-  const hasErrors = pendingFiles.some((p) => p.status === "error");
+  const hasErrors = pendingFiles.some((p) => p.status === "error" || p.status === "canceled");
   const remainingCount = pendingFiles.filter((p) => p.status !== "done").length;
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
       style={{ backgroundColor: "rgba(92,51,23,0.4)" }}
-      onClick={(e) => e.target === e.currentTarget && onClose()}
+      onClick={(e) => e.target === e.currentTarget && handleCloseOrMinimize()}
     >
       <div className="bg-background-alt rounded-[10px] w-full max-w-md mx-4 shadow-xl max-h-[90vh] flex flex-col overflow-hidden">
         {/* Header */}
@@ -201,7 +165,18 @@ export default function UploadModal({ appointments, onClose, onUploaded, onFileD
           <h2 className="text-white font-montserrat font-bold text-[18px]">
             {isSingle ? "Gestionar Archivos" : "Subir Resultado"}
           </h2>
-          <button onClick={onClose} className="text-alternative hover:text-white transition-colors text-xl leading-none">×</button>
+          <div className="flex items-center gap-3">
+            {uploading && (
+              <button
+                onClick={() => { minimizeJob(); onClose(); }}
+                title="Minimizar"
+                className="text-alternative hover:text-white transition-colors text-lg leading-none"
+              >
+                ─
+              </button>
+            )}
+            <button onClick={handleCloseOrMinimize} className="text-alternative hover:text-white transition-colors text-xl leading-none">×</button>
+          </div>
         </div>
 
         <div className="p-6 space-y-5 overflow-y-auto">
@@ -373,6 +348,11 @@ export default function UploadModal({ appointments, onClose, onUploaded, onFileD
                           Error
                         </span>
                       )}
+                      {p.status === "canceled" && (
+                        <span className="text-text/50 font-quicksand text-xs flex-shrink-0">
+                          Cancelado
+                        </span>
+                      )}
                       {p.status !== "uploading" && (
                         <button
                           onClick={() => removePending(i)}
@@ -402,7 +382,7 @@ export default function UploadModal({ appointments, onClose, onUploaded, onFileD
                 <input
                   type="checkbox"
                   checked={notifyPatient}
-                  onChange={(e) => setNotifyPatient(e.target.checked)}
+                  onChange={(e) => handleNotifyChange(e.target.checked)}
                   className="accent-action-dark"
                 />
                 <span className="text-text font-quicksand text-sm">
@@ -419,11 +399,17 @@ export default function UploadModal({ appointments, onClose, onUploaded, onFileD
           )}
 
           {error && <p className="text-red-600 text-sm font-quicksand">{error}</p>}
+          {blockedByOtherJob && job && (
+            <p className="text-amber-600 text-sm font-quicksand">
+              Ya hay una subida en curso para {job.appointmentLabel}. Espera a que termine (o
+              cancélala desde la barra inferior) para iniciar esta.
+            </p>
+          )}
 
           {/* Actions */}
           <div className="flex gap-3 pt-1">
             <button
-              onClick={onClose}
+              onClick={handleCloseOrMinimize}
               className="flex-1 border border-primary text-primary py-2.5 rounded-[10px] font-quicksand font-semibold text-sm hover:bg-primary hover:text-white transition-colors"
             >
               {!hasPending && hasExisting ? "Cerrar" : "Cancelar"}
@@ -431,11 +417,13 @@ export default function UploadModal({ appointments, onClose, onUploaded, onFileD
             {hasPending && (
               <button
                 onClick={handleUpload}
-                disabled={!selectedId || uploading}
+                disabled={!selectedId || uploading || blockedByOtherJob}
                 className="flex-1 bg-action-dark text-white py-2.5 rounded-[10px] font-quicksand font-semibold text-sm hover:bg-action-dark/80 transition-colors disabled:opacity-50"
               >
                 {uploading
                   ? "Subiendo..."
+                  : blockedByOtherJob
+                  ? "Subida en curso…"
                   : hasErrors
                   ? `Reintentar${remainingCount > 1 ? ` (${remainingCount})` : ""}`
                   : `Subir${pendingFiles.length > 1 ? ` (${pendingFiles.length})` : ""}`}
