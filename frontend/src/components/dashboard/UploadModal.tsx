@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import api from "../../api/client";
-import { useUpload, PendingUpload } from "../../context/UploadContext";
+import { useUpload, PendingUpload, JobPhase } from "../../context/UploadContext";
 
 export type { ReportFile } from "../../context/UploadContext";
 import type { ReportFile } from "../../context/UploadContext";
@@ -69,14 +69,21 @@ export default function UploadModal({ appointments, onClose, onUploaded, onFileD
   }, [selectedId, appointments]);
 
   // Auto-close (not minimize) once a job we're currently displaying finishes
-  // successfully while the modal is open — mirrors the old auto-close-on-
-  // success behavior, without affecting a job finishing while minimized.
+  // successfully while the modal is open. Tracks the *transition* into
+  // "success" rather than the static phase — otherwise reopening the modal
+  // on a job that already finished while minimized (e.g. clicking the mini
+  // bar right after it completes) would see phase "success" on the very
+  // first render and close itself immediately.
+  const prevPhaseRef = useRef<JobPhase | null>(null);
   useEffect(() => {
-    if (job && job.appointmentId === selectedId && job.phase === "success" && !job.minimized) {
+    const isCurrentJob = job && job.appointmentId === selectedId;
+    const prevPhase = prevPhaseRef.current;
+    prevPhaseRef.current = isCurrentJob ? job.phase : null;
+    if (isCurrentJob && prevPhase === "running" && job.phase === "success") {
       onClose();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [job?.phase]);
+  }, [job?.phase, selectedId]);
 
   async function handleDelete(fileId: number) {
     if (!selectedId) return;
