@@ -131,7 +131,7 @@ export default function PortalCliente() {
                 <DatePicker
                   value={dob}
                   onChange={setDob}
-                  placeholder="AAAA-MM-DD"
+                  placeholder="DD/MM/AAAA"
                   triggerClassName="w-full text-left bg-primary border border-secondary/60 text-white placeholder-secondary/60 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-alternative"
                 />
               </div>

@@ -384,7 +384,7 @@ export default function Historial() {
                               <DatePicker
                                 value={dateFrom}
                                 onChange={(v) => { setDateFrom(v); setPage(1); }}
-                                placeholder="AAAA-MM-DD"
+                                placeholder="DD/MM/AAAA"
                                 minYear={new Date().getFullYear() - 5}
                                 maxYear={new Date().getFullYear()}
                                 triggerClassName={dateTriggerClass}
@@ -395,7 +395,7 @@ export default function Historial() {
                               <DatePicker
                                 value={dateTo}
                                 onChange={(v) => { setDateTo(v); setPage(1); }}
-                                placeholder="AAAA-MM-DD"
+                                placeholder="DD/MM/AAAA"
                                 minYear={new Date().getFullYear() - 5}
                                 maxYear={new Date().getFullYear()}
                                 triggerClassName={dateTriggerClass}
