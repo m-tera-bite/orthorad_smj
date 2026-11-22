@@ -6,7 +6,82 @@ interface ReportFile {
   id: number;
   original_name: string;
   url: string | null;
+  download_url?: string | null;
   uploaded_at: string;
+}
+
+// Extensions a browser can display inline (images, PDF). Anything else —
+// DICOM/CBCT, archives… — only gets the download button.
+const VIEWABLE_EXT = ["jpg", "jpeg", "png", "gif", "webp", "bmp", "svg", "pdf"];
+
+function isViewable(name: string) {
+  const ext = name.split(".").pop()?.toLowerCase() ?? "";
+  return VIEWABLE_EXT.includes(ext);
+}
+
+async function downloadFile(f: ReportFile) {
+  // Cloud storage: the signed download URL already forces "save as".
+  if (f.download_url) {
+    const a = document.createElement("a");
+    a.href = f.download_url;
+    a.rel = "noreferrer";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    return;
+  }
+  if (!f.url) return;
+  // Local storage: fetch the bytes and save them under the original name
+  // (the `download` attribute alone is ignored for cross-origin links).
+  try {
+    const res = await fetch(f.url);
+    if (!res.ok) throw new Error(String(res.status));
+    const blobUrl = URL.createObjectURL(await res.blob());
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = f.original_name || "archivo";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+  } catch {
+    window.open(f.url, "_blank", "noreferrer");
+  }
+}
+
+function FileRow({ file }: { file: ReportFile }) {
+  const name = file.original_name || "Archivo";
+  const canOpen = !!file.url;
+  return (
+    <div className="flex items-center gap-3 max-w-[300px]">
+      <span className="font-quicksand text-sm text-text truncate min-w-0 flex-1" title={name}>
+        {name}
+      </span>
+      {canOpen && isViewable(name) && (
+        <a
+          href={file.url!}
+          target="_blank"
+          rel="noreferrer"
+          className="text-[#3f6e7a] underline font-quicksand text-sm flex-shrink-0"
+        >
+          Ver
+        </a>
+      )}
+      {canOpen && (
+        <button
+          type="button"
+          onClick={() => downloadFile(file)}
+          title="Descargar"
+          aria-label={`Descargar ${name}`}
+          className="text-[#3f6e7a] hover:text-primary transition-colors flex-shrink-0"
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M12 3v12M7 10l5 5 5-5M4 19h16" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      )}
+    </div>
+  );
 }
 
 interface ReportData {
@@ -164,15 +239,7 @@ export default function Resultados() {
                           ) : (
                             <div className="flex flex-col gap-1">
                               {files.map((f) => (
-                                <a
-                                  key={f.id}
-                                  href={f.url ?? "#"}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="text-[#3f6e7a] underline font-quicksand text-sm truncate max-w-[240px]"
-                                >
-                                  {f.original_name || "Ver archivo"}
-                                </a>
+                                <FileRow key={f.id} file={f} />
                               ))}
                             </div>
                           )}

@@ -15,6 +15,7 @@ interface Appointment {
   service: number;
   service_name: string;
   referring_partner: number | null;
+  referring_partner_name: string | null;
   scheduled_at: string;
   room: string;
   notes: string;
@@ -222,7 +223,7 @@ export default function Citas() {
               <table className="w-full text-sm font-quicksand">
                 <thead>
                   <tr style={{ backgroundColor: "#f5ede3" }}>
-                    {["Fecha", "Hora", "Paciente", "Servicio", "Sala", "Estado", ""].map((h) => (
+                    {["Fecha", "Hora", "Paciente", "Clínica", "Servicio", "Sala", "Estado", ""].map((h) => (
                       <th key={h} className="text-left text-primary font-montserrat font-bold text-[12px] px-5 py-3">
                         {h}
                       </th>
@@ -249,6 +250,12 @@ export default function Citas() {
                       </td>
                       <td className="px-5 py-3 font-montserrat font-bold text-primary truncate max-w-[180px]">
                         {a.patient_name}
+                      </td>
+                      <td
+                        className="px-5 py-3 text-text truncate max-w-[160px]"
+                        title={a.referring_partner_name ?? undefined}
+                      >
+                        {a.referring_partner_name ?? ""}
                       </td>
                       <td className="px-5 py-3 text-text truncate max-w-[150px]">{a.service_name}</td>
                       <td className="px-5 py-3 text-text">{a.room || "—"}</td>

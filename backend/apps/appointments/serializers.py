@@ -1,3 +1,5 @@
+from urllib.parse import quote
+
 from rest_framework import serializers
 from .models import Appointment, Report, ReportFile, Service, ServiceCategory
 
@@ -18,6 +20,7 @@ class ServiceSerializer(serializers.ModelSerializer):
 
 class ReportFileSerializer(serializers.ModelSerializer):
     url = serializers.SerializerMethodField()
+    download_url = serializers.SerializerMethodField()
 
     def get_url(self, obj):
         try:
@@ -25,9 +28,31 @@ class ReportFileSerializer(serializers.ModelSerializer):
         except Exception:
             return None
 
+    def get_download_url(self, obj):
+        """Signed URL that makes the browser save the file instead of
+        opening it (Content-Disposition: attachment), under its original
+        name. Only cloud storage can sign that header into the URL; with
+        local file storage this is None and the frontend downloads `url`
+        itself."""
+        if not obj.file:
+            return None
+        storage = obj.file.storage
+        if storage.__class__.__name__ != "GoogleCloudStorage":
+            return None
+        name = obj.original_name or obj.file.name.rsplit("/", 1)[-1]
+        ascii_name = name.encode("ascii", "ignore").decode() or "archivo"
+        ascii_name = ascii_name.replace('"', "").replace("\\", "")
+        disposition = (
+            f'attachment; filename="{ascii_name}"; filename*=UTF-8\'\'{quote(name)}'
+        )
+        try:
+            return storage.url(obj.file.name, parameters={"response_disposition": disposition})
+        except Exception:
+            return None
+
     class Meta:
         model = ReportFile
-        fields = ["id", "original_name", "url", "uploaded_at", "status"]
+        fields = ["id", "original_name", "url", "download_url", "uploaded_at", "status"]
 
 
 class ReportSerializer(serializers.ModelSerializer):
