@@ -218,6 +218,26 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         return Response(status=204)
 
 
+def _patient_queryset(request):
+    """Resolve the appointments that make up one patient from query params.
+
+    Patients have no identity of their own: they are the distinct
+    (name, email, phone) groups of Appointment. A patient with an email is
+    matched by email (case-insensitive); one without an email — which is
+    allowed — falls back to matching name + phone among email-less
+    appointments. Returns None when no identifier was given."""
+    email = (request.query_params.get("email") or "").strip()
+    if email:
+        return Appointment.objects.filter(patient_email__iexact=email)
+    name = (request.query_params.get("name") or "").strip()
+    if not name:
+        return None
+    phone = (request.query_params.get("phone") or "").strip()
+    return Appointment.objects.filter(
+        patient_email="", patient_name=name, patient_phone=phone
+    )
+
+
 class PatientsListView(APIView):
     """Staff view of distinct patients (aggregated from appointments).
 
@@ -236,13 +256,13 @@ class PatientsListView(APIView):
         ).annotate(
             appointment_count=Count("id"),
             last_appointment=Max("scheduled_at"),
+            date_of_birth=Max("date_of_birth"),
         )
 
         q = (request.query_params.get("q") or "").strip()
         if q:
             for word in q.split():
                 rows = rows.filter(patient_name__icontains=word)
-            rows = rows.annotate(date_of_birth=Max("date_of_birth"))
             rows = rows.order_by("patient_name")[:10]
         else:
             rows = rows.order_by("patient_name")
@@ -264,19 +284,20 @@ class PatientsListView(APIView):
         if not request.user.is_staff:
             return Response({"detail": "Forbidden."}, status=403)
 
-        email = (request.query_params.get("email") or "").strip()
-        if not email:
-            return Response({"detail": "Falta el parámetro email."}, status=400)
+        qs = _patient_queryset(request)
+        if qs is None:
+            return Response(
+                {"detail": "Falta el parámetro email o nombre del paciente."}, status=400
+            )
 
         new_email = (request.data.get("patient_email") or "").strip()
         new_phone = (request.data.get("patient_phone") or "").strip()
         raw_dob = (request.data.get("date_of_birth") or "").strip()
-        if not new_email:
-            return Response({"detail": "El correo es obligatorio."}, status=400)
-        try:
-            validate_email(new_email)
-        except DjangoValidationError:
-            return Response({"detail": "Correo inválido."}, status=400)
+        if new_email:
+            try:
+                validate_email(new_email)
+            except DjangoValidationError:
+                return Response({"detail": "Correo inválido."}, status=400)
 
         new_dob = None
         if raw_dob:
@@ -285,7 +306,7 @@ class PatientsListView(APIView):
             except ValueError:
                 return Response({"detail": "Fecha de nacimiento inválida."}, status=400)
 
-        appointments = list(Appointment.objects.filter(patient_email__iexact=email))
+        appointments = list(qs)
         if not appointments:
             return Response({"detail": "Paciente no encontrado."}, status=404)
 
@@ -294,7 +315,7 @@ class PatientsListView(APIView):
         old_phone = appointments[0].patient_phone
         old_dob = appointments[0].date_of_birth
 
-        Appointment.objects.filter(patient_email__iexact=email).update(
+        Appointment.objects.filter(pk__in=[a.pk for a in appointments]).update(
             patient_email=new_email, patient_phone=new_phone, date_of_birth=new_dob
         )
 
@@ -302,7 +323,7 @@ class PatientsListView(APIView):
             request,
             AuditLog.Action.UPDATE,
             object_type="patient",
-            object_id=new_email,
+            object_id=new_email or patient_name,
             description=f"Editó al paciente {patient_name} — datos de contacto actualizados",
             details={
                 "paciente": patient_name,
@@ -326,19 +347,18 @@ class PatientsListView(APIView):
         if not request.user.is_staff:
             return Response({"detail": "Forbidden."}, status=403)
 
-        email = (request.query_params.get("email") or "").strip()
-        if not email:
-            return Response({"detail": "Falta el parámetro email."}, status=400)
-
-        appointments = list(
-            Appointment.objects.filter(patient_email__iexact=email).select_related(
-                "service", "referring_partner"
+        qs = _patient_queryset(request)
+        if qs is None:
+            return Response(
+                {"detail": "Falta el parámetro email o nombre del paciente."}, status=400
             )
-        )
+
+        appointments = list(qs.select_related("service", "referring_partner"))
         if not appointments:
             return Response({"detail": "Paciente no encontrado."}, status=404)
 
         patient_name = appointments[0].patient_name
+        email = appointments[0].patient_email
         snapshots = [_appointment_snapshot(a) for a in appointments]
         for appointment in appointments:
             appointment.soft_delete(request.user)
@@ -347,9 +367,9 @@ class PatientsListView(APIView):
             request,
             AuditLog.Action.DELETE,
             object_type="patient",
-            object_id=email,
+            object_id=email or patient_name,
             description=(
-                f"Eliminó al paciente {patient_name} ({email}) —"
+                f"Eliminó al paciente {patient_name} ({email or 'sin correo'}) —"
                 f" {len(appointments)} cita(s) y sus resultados"
             ),
             details={"paciente": patient_name, "correo": email, "citas_eliminadas": snapshots},

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../api/client";
 import NewAppointmentModal from "../../components/dashboard/NewAppointmentModal";
-import EditPatientModal from "../../components/dashboard/EditPatientModal";
+import EditPatientModal, { patientQuery } from "../../components/dashboard/EditPatientModal";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 
 interface Patient {
@@ -39,12 +39,8 @@ export default function Pacientes() {
   useEffect(() => { load(); }, []);
 
   async function handleDelete(patient: Patient) {
-    await api.delete(
-      `/appointments/patients/?email=${encodeURIComponent(patient.patient_email)}`
-    );
-    setPatients((prev) =>
-      prev.filter((p) => p.patient_email !== patient.patient_email)
-    );
+    await api.delete(`/appointments/patients/?${patientQuery(patient)}`);
+    setPatients((prev) => prev.filter((p) => p !== patient));
   }
 
   const filtered = patients.filter(
@@ -117,7 +113,7 @@ export default function Pacientes() {
         ) : (
           <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}>
             {filtered.map((p) => (
-              <div key={p.patient_email} className="bg-white rounded-[10px] overflow-hidden">
+              <div key={p.patient_email || `${p.patient_name}|${p.patient_phone}`} className="bg-white rounded-[10px] overflow-hidden">
                 <div className="bg-primary px-4 py-3">
                   <p className="text-white font-montserrat font-bold text-[15px] truncate">{p.patient_name}</p>
                 </div>
@@ -209,9 +205,7 @@ export default function Pacientes() {
           onClose={() => setEditing(null)}
           onSaved={(updated) => {
             setPatients((prev) =>
-              prev.map((p) =>
-                p.patient_email === editing.patient_email ? { ...p, ...updated } : p
-              )
+              prev.map((p) => (p === editing ? { ...p, ...updated } : p))
             );
             setEditing(null);
           }}
@@ -224,7 +218,7 @@ export default function Pacientes() {
           message={
             <>
               ¿Eliminar al paciente <strong>{deleting.patient_name}</strong> (
-              {deleting.patient_email})? Se eliminarán sus{" "}
+              {deleting.patient_email || "sin correo"})? Se eliminarán sus{" "}
               <strong>
                 {deleting.appointment_count}{" "}
                 {deleting.appointment_count === 1 ? "cita" : "citas"}

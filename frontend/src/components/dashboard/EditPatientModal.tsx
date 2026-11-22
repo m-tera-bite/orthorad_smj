@@ -9,6 +9,19 @@ interface Patient {
   date_of_birth: string | null;
 }
 
+/** Query string identifying a patient: by email when they have one,
+ *  otherwise by name + phone (patients without email are allowed). */
+export function patientQuery(p: Pick<Patient, "patient_name" | "patient_email" | "patient_phone">) {
+  const params = new URLSearchParams();
+  if (p.patient_email) {
+    params.set("email", p.patient_email);
+  } else {
+    params.set("name", p.patient_name);
+    params.set("phone", p.patient_phone || "");
+  }
+  return params.toString();
+}
+
 interface Props {
   patient: Patient;
   onClose: () => void;
@@ -32,12 +45,15 @@ export default function EditPatientModal({ patient, onClose, onSaved }: Props) {
     setError(null);
     try {
       const { data } = await api.patch(
-        `/appointments/patients/?email=${encodeURIComponent(patient.patient_email)}`,
-        { patient_email: email, patient_phone: phone, date_of_birth: dob || null }
+        `/appointments/patients/?${patientQuery(patient)}`,
+        { patient_email: email.trim(), patient_phone: phone.trim(), date_of_birth: dob || null }
       );
       onSaved(data);
-    } catch {
-      setError("No se pudo guardar. Verifica el correo e intenta de nuevo.");
+    } catch (err: any) {
+      setError(
+        err?.response?.data?.detail ??
+          "No se pudo guardar. Verifica el correo e intenta de nuevo."
+      );
     } finally {
       setLoading(false);
     }
@@ -70,7 +86,6 @@ export default function EditPatientModal({ patient, onClose, onSaved }: Props) {
           <div>
             <label className={labelClass}>Correo electrónico</label>
             <input
-              required
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}

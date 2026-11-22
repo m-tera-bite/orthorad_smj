@@ -344,6 +344,7 @@ class PartnerPatientsView(APIView):
             .annotate(
                 appointment_count=Count("id"),
                 last_appointment=Max("scheduled_at"),
+                date_of_birth=Max("date_of_birth"),
             )
             .order_by("patient_name")
         )
