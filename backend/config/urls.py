@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.urls import path, include, re_path
-from apps.core.views import spa_view
+from apps.core.views import guide_view, spa_view
 from apps.appointments.views import DashboardSummaryView
 
 urlpatterns = [
@@ -10,6 +10,9 @@ urlpatterns = [
     path("api/portal/", include("apps.portal.urls.portal")),
     path("api/audit/", include("apps.audit.urls")),
     path("api/dashboard/summary/", DashboardSummaryView.as_view(), name="dashboard-summary"),
+    # Staff user guide (static HTML + images in backend/static/guia/)
+    # Trailing slash optional: the SPA catch-all below would otherwise swallow "/guia".
+    re_path(r"^guia/?$", guide_view, name="staff-guide"),
     # Catch-all: serve the React SPA for any non-API route
     re_path(r"^(?!api/).*$", spa_view),
 ]

@@ -1,0 +1,652 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Guía del Personal OrthoRad</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700&family=Quicksand:wght@400;500;600;700&display=swap">
+<style>
+/* Layout concept: brown hero with quick tasks, then a sticky chapter index beside long-form chapters.
+   Every screen is a real screenshot with numbered coral pins that match the legend beside it. */
+:root {
+  --font-head: "Montserrat", "Segoe UI", Arial, sans-serif;
+  --font-body: "Quicksand", "Segoe UI", Arial, sans-serif;
+
+  --bg: #FFFCF7;
+  --surface: #F5EDE3;
+  --card: #FFFFFF;
+  --ink: #3F3A36;
+  --head: #5C3317;
+  --muted: #7B6A5C;
+  --line: #E6D9CA;
+  --accent: #3F6E7A;
+  --accent-ink: #FFFFFF;
+  --tan: #CFAC8C;
+  --hero: #5C3317;
+  --hero-ink: #FFF6EA;
+  --pin: #C8401A;
+  --warn-bg: #FBEBD7;
+  --warn-line: #E2B27A;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #17110D; --surface: #241A14; --card: #1F1712; --ink: #E7DCCF; --head: #F0D9C1;
+    --muted: #B7A591; --line: #3B2C22; --accent: #86C4D2; --accent-ink: #10222A; --tan: #CFAC8C;
+    --hero: #3A2010; --hero-ink: #FBF0E3; --pin: #C8401A; --warn-bg: #33241A; --warn-line: #7A5632;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #17110D; --surface: #241A14; --card: #1F1712; --ink: #E7DCCF; --head: #F0D9C1;
+  --muted: #B7A591; --line: #3B2C22; --accent: #86C4D2; --accent-ink: #10222A; --tan: #CFAC8C;
+  --hero: #3A2010; --hero-ink: #FBF0E3; --pin: #C8401A; --warn-bg: #33241A; --warn-line: #7A5632;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 76px; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  background: var(--bg); color: var(--ink);
+  font: 400 16px/1.65 var(--font-body);
+  margin: 0;
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--surface); }
+h1, h2, h3 { font-family: var(--font-head); color: var(--head); text-wrap: balance; margin: 0; line-height: 1.2; }
+p { margin: 0 0 12px; }
+a { color: var(--accent); }
+a:focus-visible, summary:focus-visible { outline: 3px solid var(--pin); outline-offset: 2px; border-radius: 4px; }
+strong { font-weight: 700; color: var(--head); }
+.gutter { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+/* ---------- Hero ---------- */
+.hero { background: var(--hero); color: var(--hero-ink); margin-top: calc(-1 * env(safe-area-inset-top, 0px)); padding-top: calc(env(safe-area-inset-top, 0px) + 36px); padding-bottom: 40px; }
+.hero-in { max-width: 1180px; margin: 0 auto; }
+.hero .wordmark { font: 600 30px/1 var(--font-head); letter-spacing: .02em; color: var(--hero-ink); margin-bottom: 28px; }
+.hero .wordmark small { display: block; margin-top: 6px; font: 600 11px/1 var(--font-head); letter-spacing: .14em; text-transform: uppercase; color: var(--tan); }
+.hero h1 { color: var(--hero-ink); font-size: clamp(30px, 5vw, 46px); }
+.hero .lead { max-width: 60ch; margin: 14px 0 28px; font-size: 18px; color: #EBD6BF; }
+.quick-title { font: 700 12px/1 var(--font-head); letter-spacing: .08em; text-transform: uppercase; color: var(--tan); margin-bottom: 12px; }
+.quick { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+.quick a { display: block; text-decoration: none; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.18); border-radius: 12px; padding: 14px 16px; color: var(--hero-ink); font-weight: 600; transition: background .15s; }
+.quick a:hover { background: rgba(255,255,255,.16); }
+.quick a small { display: block; font-weight: 500; color: #D9BFA3; font-size: 13px; margin-top: 2px; }
+
+/* ---------- Layout ---------- */
+.layout { max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 56px; padding-block: 40px 72px; }
+.side { position: sticky; top: 24px; align-self: start; }
+.side p { font: 700 12px/1 var(--font-head); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
+.side ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.side a { display: block; padding: 8px 12px; border-radius: 8px; text-decoration: none; color: var(--ink); font-weight: 600; font-size: 15px; border-left: 3px solid transparent; }
+.side a:hover { background: var(--surface); }
+.side a.on { background: var(--surface); border-left-color: var(--pin); color: var(--head); }
+
+@media (max-width: 900px) {
+  .layout { grid-template-columns: minmax(0, 1fr); gap: 20px; padding-block: 0 56px; }
+  .side { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); padding: 10px max(16px, env(safe-area-inset-left, 0px)); background: var(--bg); border-bottom: 1px solid var(--line); }
+  .side p { display: none; }
+  .side ol { display: flex; overflow-x: auto; gap: 8px; padding-bottom: 2px; }
+  .side a { white-space: nowrap; border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; font-size: 14px; }
+  .side a.on { border-color: var(--pin); }
+}
+
+/* ---------- Chapters ---------- */
+.chapter { padding-bottom: 56px; margin-bottom: 56px; border-bottom: 1px solid var(--line); min-width: 0; }
+.chapter:last-of-type { border-bottom: 0; margin-bottom: 0; }
+.eyebrow { font: 700 12px/1 var(--font-head); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+.chapter > h2 { font-size: clamp(26px, 3.6vw, 34px); margin-bottom: 14px; }
+.chapter h3 { font-size: 20px; margin: 36px 0 12px; }
+.purpose { font-size: 18px; max-width: 62ch; }
+
+/* ---------- Screenshots with pins ---------- */
+.shot { position: relative; margin: 20px 0 8px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: #fff; box-shadow: 0 6px 22px rgba(60, 35, 15, .10); }
+.shot img { display: block; width: 100%; height: auto; }
+.shot.sm { max-width: 540px; }
+.pin { position: absolute; left: calc((var(--x) - var(--ox)) / var(--w) * 100%); top: calc((var(--y) - var(--oy)) / var(--h) * 100%); transform: translate(-50%, -50%); width: 24px; height: 24px; border-radius: 50%; background: var(--pin); color: #fff; font: 700 12px/24px var(--font-head); text-align: center; font-style: normal; box-shadow: 0 0 0 2px #fff, 0 2px 8px rgba(0, 0, 0, .4); }
+
+.legend { list-style: none; counter-reset: pin; margin: 18px 0 0; padding: 0; display: grid; gap: 10px; }
+.legend li { counter-increment: pin; position: relative; padding-left: 40px; min-height: 28px; }
+.legend li::before { content: counter(pin); position: absolute; left: 0; top: 1px; width: 26px; height: 26px; border-radius: 50%; background: var(--pin); color: #fff; font: 700 13px/26px var(--font-head); text-align: center; }
+
+/* ---------- Steps ---------- */
+.steps { list-style: none; counter-reset: step; margin: 14px 0 0; padding: 0; display: grid; gap: 14px; }
+.steps li { counter-increment: step; position: relative; padding-left: 48px; }
+.steps li::before { content: counter(step); position: absolute; left: 0; top: -2px; width: 32px; height: 32px; border-radius: 10px; background: var(--surface); border: 1.5px solid var(--head); color: var(--head); font: 700 15px/29px var(--font-head); text-align: center; }
+
+.task { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px; align-items: start; margin-top: 8px; }
+.task > * { min-width: 0; }
+.task.wide-first { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); }
+@media (max-width: 900px) { .task, .task.wide-first { grid-template-columns: minmax(0, 1fr); gap: 8px; } }
+
+/* ---------- Callouts ---------- */
+.note { margin: 18px 0 0; padding: 14px 16px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); }
+.note b.t { display: block; font: 700 13px/1.2 var(--font-head); color: var(--head); margin-bottom: 4px; letter-spacing: .02em; }
+.note.warn { background: var(--warn-bg); border-color: var(--warn-line); }
+.note p:last-child { margin-bottom: 0; }
+
+.states { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 0; }
+.chip { display: inline-block; padding: 4px 12px; border-radius: 8px; color: #fff; font: 700 12px/1.5 var(--font-head); }
+.chip.p { background: #A0673A; } .chip.c { background: #8A5A33; } .chip.e { background: #3F6E7A; } .chip.d { background: #CFAC8C; color: #3A2412; } .chip.x { background: #C62828; }
+.chip.k { background: #3F6E7A; } .chip.m { background: #A0673A; } .chip.r { background: #C62828; }
+
+/* ---------- FAQ ---------- */
+.faq { display: grid; gap: 10px; margin-top: 18px; }
+details { background: var(--card); border: 1px solid var(--line); border-radius: 12px; }
+summary { cursor: pointer; padding: 14px 18px; font-weight: 700; color: var(--head); list-style: none; display: flex; justify-content: space-between; gap: 12px; }
+summary::-webkit-details-marker { display: none; }
+summary::after { content: "+"; font: 700 20px/1 var(--font-head); color: var(--pin); }
+details[open] summary::after { content: "–"; }
+details > div { padding: 0 18px 16px; }
+details p:last-child { margin-bottom: 0; }
+
+.foot { margin-top: 40px; color: var(--muted); font-size: 14px; }
+</style>
+</head>
+<body>
+<header class="hero gutter">
+  <div class="hero-in">
+    <div class="wordmark">OrthoRad<small>Centro Radiológico Dental</small></div>
+    <h1>Guía del Personal</h1>
+    <p class="lead">Cómo usar el panel de OrthoRad paso a paso: agendar citas, subir resultados y dar acceso a las clínicas asociadas.</p>
+    <p class="quick-title">¿Qué necesitas hacer hoy?</p>
+    <nav class="quick" aria-label="Tareas frecuentes">
+      <a href="#nueva-cita">Agendar una cita<small>Capítulo Citas</small></a>
+      <a href="#subir">Subir resultados<small>Capítulo Reportes</small></a>
+      <a href="#acceso">Dar acceso a una clínica<small>Capítulo Clínicas asociadas</small></a>
+      <a href="#password">Restablecer una contraseña<small>Capítulo Clínicas asociadas</small></a>
+    </nav>
+  </div>
+</header>
+
+<div class="layout gutter">
+  <aside class="side" aria-label="Capítulos">
+    <p>Capítulos</p>
+    <ol>
+      <li><a href="#empezar">Empezar</a></li>
+      <li><a href="#panel">El panel</a></li>
+      <li><a href="#dashboard">Dashboard</a></li>
+      <li><a href="#pacientes">Pacientes</a></li>
+      <li><a href="#citas">Citas</a></li>
+      <li><a href="#reportes">Reportes</a></li>
+      <li><a href="#socios">Clínicas asociadas</a></li>
+      <li><a href="#historial">Historial</a></li>
+      <li><a href="#faq">Preguntas frecuentes</a></li>
+    </ol>
+  </aside>
+
+  <main>
+
+    <!-- ===== EMPEZAR ===== -->
+    <section class="chapter" id="empezar">
+      <div class="eyebrow">Capítulo 1</div>
+      <h2>Empezar</h2>
+      <p class="purpose">Cómo entrar al panel, recuperar tu contraseña y salir de forma segura.</p>
+
+      <h3>Entrar al panel</h3>
+      <ol class="steps">
+        <li>Abre <strong>www.orthorad-smj.com/login</strong> en tu navegador. También sirve el botón <strong>Ingresar</strong> de la página principal.</li>
+        <li>Escribe tu correo y tu contraseña y pulsa <strong>Entrar</strong>.</li>
+        <li>Llegarás al Dashboard, la pantalla de inicio del panel.</li>
+      </ol>
+
+      <h3>Si olvidaste tu contraseña</h3>
+      <ol class="steps">
+        <li>En la pantalla de entrada pulsa <strong>¿Olvidaste tu contraseña?</strong> y escribe tu correo.</li>
+        <li>Revisa tu bandeja de entrada. Recibirás un mensaje de <strong>OrthoRad</strong> con el botón <strong>Crear nueva contraseña</strong>.</li>
+        <li>Pulsa el botón, escribe tu nueva contraseña dos veces (mínimo 8 caracteres) y guarda.</li>
+        <li>Volverás a la pantalla de entrada para iniciar sesión con la contraseña nueva.</li>
+      </ol>
+      <div class="note warn">
+        <b class="t">El enlace funciona una sola vez</b>
+        <p>Vence en 1 hora. Si ya lo usaste o venció, pide uno nuevo desde la misma pantalla. Si el mensaje no llega, revisa la carpeta de spam.</p>
+      </div>
+
+      <h3>Cerrar sesión</h3>
+      <p>Usa <strong>Cerrar sesión</strong>, al final del menú lateral. Hazlo siempre que trabajes en una computadora compartida.</p>
+    </section>
+
+    <!-- ===== PANEL ===== -->
+    <section class="chapter" id="panel">
+      <div class="eyebrow">Capítulo 2</div>
+      <h2>El panel</h2>
+      <p class="purpose">El menú café de la izquierda te lleva a cada sección. Siempre está visible, sin importar dónde estés.</p>
+
+      <figure class="shot" style="--w:1440;--h:900;--ox:0;--oy:0">
+        <img src="/static/guia/img/menu.png" alt="Pantalla principal con el menú lateral">
+        <i class="pin" style="--x:238;--y:172">1</i>
+        <i class="pin" style="--x:238;--y:224">2</i>
+        <i class="pin" style="--x:238;--y:276">3</i>
+        <i class="pin" style="--x:238;--y:328">4</i>
+        <i class="pin" style="--x:238;--y:380">5</i>
+        <i class="pin" style="--x:238;--y:432">6</i>
+        <i class="pin" style="--x:238;--y:842">7</i>
+      </figure>
+      <ol class="legend">
+        <li><strong>Dashboard.</strong> Resumen del día: citas, resultados pendientes y actividad de la semana.</li>
+        <li><strong>Pacientes.</strong> Todos los pacientes con sus datos de contacto.</li>
+        <li><strong>Reportes.</strong> Los estudios y el lugar donde se suben los resultados.</li>
+        <li><strong>Socios.</strong> Las clínicas asociadas y quién de ellas puede entrar al portal.</li>
+        <li><strong>Citas de hoy.</strong> La agenda. También puedes ver la semana completa o todas las citas.</li>
+        <li><strong>Historial.</strong> El registro de lo que hace cada persona del personal.</li>
+        <li><strong>Cerrar sesión.</strong> Sale del panel.</li>
+      </ol>
+      <div class="note">
+        <b class="t">¿Tienes una duda mientras trabajas?</b>
+        <p>Justo encima de <strong>Cerrar sesión</strong> hay un botón <strong>Guía de uso</strong>. Abre esta guía en una pestaña nueva, así no pierdes lo que estás haciendo en el panel.</p>
+      </div>
+    </section>
+
+    <!-- ===== DASHBOARD ===== -->
+    <section class="chapter" id="dashboard">
+      <div class="eyebrow">Capítulo 3</div>
+      <h2>Dashboard</h2>
+      <p class="purpose">La pantalla de inicio. Muestra cómo va el día de un vistazo y tiene los dos botones más usados.</p>
+
+      <figure class="shot" style="--w:1191;--h:900;--ox:249;--oy:0">
+        <img src="/static/guia/img/dashboard.png" alt="Dashboard con las tarjetas de resumen y las citas de hoy">
+        <i class="pin" style="--x:1104;--y:15">1</i>
+        <i class="pin" style="--x:1281;--y:15">2</i>
+        <i class="pin" style="--x:289;--y:168">3</i>
+        <i class="pin" style="--x:289;--y:290">4</i>
+        <i class="pin" style="--x:289;--y:345">5</i>
+        <i class="pin" style="--x:979;--y:357">6</i>
+        <i class="pin" style="--x:979;--y:541">7</i>
+      </figure>
+      <ol class="legend">
+        <li><strong>Subir Resultados.</strong> Adjunta los estudios de las citas de hoy. Para otras fechas usa el capítulo Reportes.</li>
+        <li><strong>Nueva Cita.</strong> Abre el formulario para agendar un paciente.</li>
+        <li><strong>Tarjetas de resumen.</strong> Citas de hoy (y cuántas siguen pendientes), pacientes nuevos del mes, reportes emitidos y reportes subidos.</li>
+        <li><strong>Barras de avance.</strong> La barra azul muestra la cita que está en curso. La beige muestra la que sigue.</li>
+        <li><strong>Citas de hoy.</strong> Hora, paciente, estudio, sala y estado de cada cita del día.</li>
+        <li><strong>Estudios / Semana.</strong> Cuántos estudios hubo cada día. El día de hoy aparece en café oscuro.</li>
+        <li><strong>Estado de Subida.</strong> Una palomita indica que los resultados ya se subieron. «Pendiente» indica que falta subirlos.</li>
+      </ol>
+
+      <h3>Los estados de una cita</h3>
+      <p>Cada cita muestra uno de estos estados. Se cambian desde el capítulo Citas.</p>
+      <div class="states">
+        <span class="chip p">Pendiente</span>
+        <span class="chip c">Confirmado</span>
+        <span class="chip e">En Curso</span>
+        <span class="chip d">Completada</span>
+        <span class="chip x">Cancelado</span>
+      </div>
+    </section>
+
+    <!-- ===== PACIENTES ===== -->
+    <section class="chapter" id="pacientes">
+      <div class="eyebrow">Capítulo 4</div>
+      <h2>Pacientes</h2>
+      <p class="purpose">Cada persona que ha tenido una cita aparece aquí como una tarjeta con sus datos de contacto.</p>
+
+      <figure class="shot" style="--w:1191;--h:520;--ox:249;--oy:0">
+        <img src="/static/guia/img/pacientes.png" alt="Lista de pacientes">
+        <i class="pin" style="--x:289;--y:105">1</i>
+        <i class="pin" style="--x:292;--y:149">2</i>
+        <i class="pin" style="--x:322;--y:370">3</i>
+        <i class="pin" style="--x:548;--y:370">4</i>
+        <i class="pin" style="--x:596;--y:370">5</i>
+      </figure>
+      <ol class="legend">
+        <li><strong>Buscador.</strong> Escribe un nombre o un correo para encontrar a un paciente.</li>
+        <li><strong>Tarjeta del paciente.</strong> Correo, teléfono, fecha de nacimiento, número de citas y la fecha de la última.</li>
+        <li><strong>Ver Citas.</strong> Abre las citas de ese paciente. La lista empieza en «Hoy», así que pulsa <strong>Todas</strong> para ver su historial completo.</li>
+        <li><strong>Lápiz.</strong> Edita el correo, el teléfono y la fecha de nacimiento.</li>
+        <li><strong>Papelera.</strong> Elimina al paciente. Siempre pide confirmación.</li>
+      </ol>
+
+      <h3 id="editar-paciente">Editar los datos de un paciente</h3>
+      <div class="task">
+        <figure class="shot sm" style="--w:488;--h:520;--ox:476;--oy:190;margin-top:0">
+          <img src="/static/guia/img/editar-paciente.png" alt="Ventana Editar Paciente">
+          <i class="pin" style="--x:930;--y:352">1</i>
+          <i class="pin" style="--x:930;--y:434">2</i>
+          <i class="pin" style="--x:930;--y:516">3</i>
+          <i class="pin" style="--x:733;--y:625">4</i>
+        </figure>
+        <div>
+          <ol class="steps">
+            <li>Pulsa el <strong>lápiz</strong> en la tarjeta del paciente.</li>
+            <li>Corrige el <strong>correo</strong> y el <strong>teléfono</strong> si cambiaron.</li>
+            <li>En <strong>Fecha de nacimiento</strong>, pulsa el campo, elige el mes y el año en los menús y luego el día.</li>
+            <li>Pulsa <strong>Guardar Cambios</strong>.</li>
+          </ol>
+          <div class="note">
+            <b class="t">Los cambios aplican a todas sus citas</b>
+            <p>Un solo cambio actualiza los datos en todas las citas registradas de ese paciente.</p>
+          </div>
+          <div class="note warn">
+            <b class="t">La fecha de nacimiento es importante</b>
+            <p>El paciente la usa para ver sus resultados en el portal. Si falta, no podrá entrar.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="note warn">
+        <b class="t">Antes de eliminar a un paciente</b>
+        <p>Se eliminan también todas sus citas y sus resultados, y dejan de mostrarse en el sistema, incluido el portal de las clínicas asociadas. Revisa el nombre y el correo antes de confirmar.</p>
+      </div>
+    </section>
+
+    <!-- ===== CITAS ===== -->
+    <section class="chapter" id="citas">
+      <div class="eyebrow">Capítulo 5</div>
+      <h2>Citas</h2>
+      <p class="purpose">La agenda del centro. Aquí agendas citas nuevas y cambias el estado de las que ya existen.</p>
+
+      <figure class="shot" style="--w:1191;--h:420;--ox:249;--oy:0">
+        <img src="/static/guia/img/citas.png" alt="Lista de citas con filtros">
+        <i class="pin" style="--x:289;--y:103">1</i>
+        <i class="pin" style="--x:568;--y:103">2</i>
+        <i class="pin" style="--x:1281;--y:14">3</i>
+        <i class="pin" style="--x:1108;--y:251">4</i>
+        <i class="pin" style="--x:1311;--y:251">5</i>
+      </figure>
+      <ol class="legend">
+        <li><strong>Hoy, Esta semana, Todas.</strong> Cambia el rango de fechas de la lista.</li>
+        <li><strong>Todos los estados.</strong> Muestra solo las citas con un estado, por ejemplo las pendientes.</li>
+        <li><strong>Nueva Cita.</strong> Agenda un paciente.</li>
+        <li><strong>Estado.</strong> Cada fila tiene un menú para cambiar el estado: Pendiente, Confirmado, En Curso, Completada o Cancelado.</li>
+        <li><strong>Lápiz y papelera.</strong> El lápiz edita la cita. La papelera la elimina y pide confirmación.</li>
+      </ol>
+
+      <h3 id="nueva-cita">Agendar una cita nueva</h3>
+      <div class="task wide-first">
+        <figure class="shot sm" style="--w:532;--h:820;--ox:454;--oy:40;margin-top:0">
+          <img src="/static/guia/img/nueva-cita.png" alt="Formulario Nueva Cita">
+          <i class="pin" style="--x:958;--y:151">1</i>
+          <i class="pin" style="--x:958;--y:233">2</i>
+          <i class="pin" style="--x:722;--y:317">3</i>
+          <i class="pin" style="--x:958;--y:397">4</i>
+          <i class="pin" style="--x:958;--y:645">5</i>
+          <i class="pin" style="--x:958;--y:705">6</i>
+          <i class="pin" style="--x:958;--y:808">7</i>
+        </figure>
+        <div>
+          <ol class="steps">
+            <li>Pulsa <strong>Nueva Cita</strong>. Está en el Dashboard, en Pacientes y en Citas.</li>
+            <li>Escribe el <strong>nombre del paciente</strong>. Si ya existe, aparece una lista de pacientes parecidos. Elígelo para no duplicar sus datos.</li>
+            <li>Completa el <strong>correo</strong> y el <strong>teléfono</strong>.</li>
+            <li>Escribe la <strong>fecha de nacimiento</strong> si la tienes. El paciente la necesita para ver sus resultados.</li>
+            <li>Elige el <strong>servicio</strong> de la lista. Cada uno muestra su duración.</li>
+            <li>La cita se agenda para ahora, en la sala 1. Pulsa <strong>Agendar Cita (cambiar fecha, hora o sala)</strong> si necesitas otra fecha, hora o sala.</li>
+            <li>Si el paciente viene de una clínica, elígela en <strong>Clínica referente</strong>.</li>
+            <li>Agrega <strong>notas</strong> si hace falta y pulsa <strong>Crear Cita</strong>, al final del formulario.</li>
+          </ol>
+          <div class="note">
+            <b class="t">Qué es obligatorio</b>
+            <p>El nombre del paciente y el servicio llevan un asterisco (*). El resto de los datos se pueden completar después.</p>
+          </div>
+          <div class="note">
+            <b class="t">Clínica referente</b>
+            <p>La clínica que elijas podrá ver este estudio y sus resultados en su portal.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== REPORTES ===== -->
+    <section class="chapter" id="reportes">
+      <div class="eyebrow">Capítulo 6</div>
+      <h2>Reportes</h2>
+      <p class="purpose">Aquí se ve qué estudios ya tienen resultados y cuáles faltan. También se suben los archivos.</p>
+
+      <figure class="shot" style="--w:1191;--h:420;--ox:249;--oy:0">
+        <img src="/static/guia/img/reportes.png" alt="Lista de reportes">
+        <i class="pin" style="--x:289;--y:104">1</i>
+        <i class="pin" style="--x:1239;--y:15">2</i>
+        <i class="pin" style="--x:995;--y:253">3</i>
+        <i class="pin" style="--x:1297;--y:251">4</i>
+      </figure>
+      <ol class="legend">
+        <li><strong>Todos, Pendientes, Subidos.</strong> Filtra la lista. Usa Pendientes para ver lo que falta por subir.</li>
+        <li><strong>Subir Resultados.</strong> Sube archivos y te deja elegir la cita.</li>
+        <li><strong>Estado.</strong> «Pendiente» quiere decir que aún no hay archivos. «Subido» quiere decir que ya están.</li>
+        <li><strong>Subir o Gestionar.</strong> Sube los archivos de esa cita, o administra los que ya existen.</li>
+      </ol>
+
+      <h3 id="subir">Subir resultados de un paciente</h3>
+      <div class="task">
+        <div>
+          <figure class="shot sm" style="--w:488;--h:474;--ox:476;--oy:213;margin-top:0">
+            <img src="/static/guia/img/subir-resultados.png" alt="Ventana Subir Resultado">
+            <i class="pin" style="--x:930;--y:339">1</i>
+            <i class="pin" style="--x:930;--y:455">2</i>
+          </figure>
+        </div>
+        <div>
+          <ol class="steps">
+            <li>Elige cómo empezar. Desde el <strong>Dashboard</strong>, el botón <strong>Subir Resultados</strong> lista las citas de hoy. Desde <strong>Reportes</strong>, el botón <strong>Subir</strong> de una fila abre esa cita directamente.</li>
+            <li>Si usaste el botón general, escoge la cita en <strong>Paciente / Cita</strong>.</li>
+            <li>Arrastra los archivos al recuadro o pulsa <strong>selecciona</strong>. Se aceptan imágenes, PDF y archivos DICOM.</li>
+            <li>Marca <strong>También notificar al paciente por correo</strong> si quieres que él también reciba el aviso.</li>
+            <li>Espera a que la barra termine. Puedes minimizar la ventana y seguir trabajando: el avance queda en una barra pequeña.</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="note">
+        <b class="t">Qué pasa cuando termina la subida</b>
+        <p>El sistema envía un correo automático a la <strong>clínica que refirió</strong> al paciente, si tiene un correo guardado. Si el paciente no viene de una clínica, el correo le llega a él. La cita pasa a «Subido».</p>
+      </div>
+      <div class="note warn">
+        <b class="t">Aviso amarillo de fecha de nacimiento</b>
+        <p>Si aparece un ⚠ que dice que falta la fecha de nacimiento, agrégala desde Pacientes. Sin ella el paciente no puede usar el portal de resultados.</p>
+      </div>
+
+      <h3>Administrar los archivos de una cita</h3>
+      <div class="task">
+        <figure class="shot sm" style="--w:488;--h:466;--ox:476;--oy:217;margin-top:0">
+          <img src="/static/guia/img/gestionar.png" alt="Ventana Gestionar Archivos">
+          <i class="pin" style="--x:930;--y:333">1</i>
+          <i class="pin" style="--x:930;--y:451">2</i>
+        </figure>
+        <ol class="legend" style="margin-top:0">
+          <li><strong>Cita.</strong> Muestra el paciente y el estudio al que pertenecen los archivos.</li>
+          <li><strong>Archivo.</strong> Arrastra nuevos archivos aquí. Para una cita que ya tiene resultados, el botón de la fila dice <strong>Gestionar</strong> en lugar de Subir.</li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- ===== SOCIOS ===== -->
+    <section class="chapter" id="socios">
+      <div class="eyebrow">Capítulo 7</div>
+      <h2>Clínicas asociadas</h2>
+      <p class="purpose">Las clínicas que refieren pacientes y consultan sus resultados en el portal. Aquí se crean y se decide quién puede entrar.</p>
+
+      <figure class="shot" style="--w:1191;--h:420;--ox:249;--oy:0">
+        <img src="/static/guia/img/socios.png" alt="Lista de clínicas asociadas">
+        <i class="pin" style="--x:289;--y:105">1</i>
+        <i class="pin" style="--x:1264;--y:14">2</i>
+        <i class="pin" style="--x:684;--y:342">3</i>
+        <i class="pin" style="--x:828;--y:342">4</i>
+        <i class="pin" style="--x:970;--y:342">5</i>
+      </figure>
+      <ol class="legend">
+        <li><strong>Buscador.</strong> Encuentra una clínica por nombre.</li>
+        <li><strong>Nueva Clínica.</strong> Registra una clínica nueva.</li>
+        <li><strong>Editar.</strong> Cambia el nombre, el contacto, el teléfono o el correo. También puedes pausar la clínica.</li>
+        <li><strong>Accesos.</strong> Las personas de la clínica que pueden entrar al portal. La etiqueta «1 acceso» indica cuántas hay.</li>
+        <li><strong>Papelera.</strong> Elimina la clínica. Sus usuarios pierden el acceso de inmediato. Pide confirmación.</li>
+      </ol>
+
+      <h3>Registrar una clínica nueva</h3>
+      <div class="task">
+        <figure class="shot sm" style="--w:552;--h:488;--ox:444;--oy:206;margin-top:0">
+          <img src="/static/guia/img/nueva-clinica.png" alt="Formulario Nueva Clínica Asociada">
+          <i class="pin" style="--x:962;--y:332">1</i>
+          <i class="pin" style="--x:962;--y:414">2</i>
+          <i class="pin" style="--x:962;--y:496">3</i>
+          <i class="pin" style="--x:962;--y:578">4</i>
+          <i class="pin" style="--x:945;--y:608">5</i>
+        </figure>
+        <ol class="legend" style="margin-top:0">
+          <li><strong>Nombre de la clínica.</strong> Es el único dato obligatorio.</li>
+          <li><strong>Contacto y teléfono.</strong> La persona de la clínica con quien se habla.</li>
+          <li><strong>Correo de contacto.</strong> A este correo llegan los avisos de «resultados listos».</li>
+          <li><strong>Activa (con acceso al portal).</strong> Déjala marcada. Si la desmarcas, la clínica se pausa.</li>
+          <li><strong>Crear Clínica.</strong> Guarda la clínica.</li>
+        </ol>
+      </div>
+
+      <h3 id="acceso">Dar acceso al portal a una persona de la clínica</h3>
+      <div class="task">
+        <figure class="shot sm" style="--w:552;--h:260;--ox:444;--oy:320;margin-top:0">
+          <img src="/static/guia/img/accesos.png" alt="Ventana de accesos de una clínica">
+          <i class="pin" style="--x:868;--y:437">1</i>
+          <i class="pin" style="--x:716;--y:495">2</i>
+          <i class="pin" style="--x:862;--y:495">3</i>
+        </figure>
+        <div>
+          <ol class="steps">
+            <li>En la tarjeta de la clínica pulsa <strong>Accesos</strong>.</li>
+            <li>Escribe el <strong>correo</strong> de la persona y pulsa <strong>Agregar</strong>.</li>
+            <li>El sistema crea la cuenta y muestra una <strong>contraseña temporal</strong> en un recuadro azul. Aparece <strong>una sola vez</strong>, así que cópiala antes de cerrar la ventana.</li>
+            <li>Entrega el correo y la contraseña a la persona. Debe entrar en <strong>www.orthorad-smj.com/portal-socios</strong>.</li>
+          </ol>
+          <ol class="legend" style="margin-top:18px">
+            <li><strong>Agregar.</strong> Da acceso al correo que escribiste.</li>
+            <li><strong>Restablecer contraseña.</strong> Mira la sección siguiente.</li>
+            <li><strong>Quitar acceso.</strong> Esa persona deja de ver los datos de la clínica.</li>
+          </ol>
+          <div class="note">
+            <b class="t">Un correo, una clínica</b>
+            <p>Cada correo puede pertenecer a una sola clínica. Los correos del personal de OrthoRad no se pueden usar aquí.</p>
+          </div>
+        </div>
+      </div>
+
+      <h3 id="password">Restablecer la contraseña de una persona de la clínica</h3>
+      <div class="task">
+        <figure class="shot sm" style="--w:552;--h:320;--ox:444;--oy:290;margin-top:0">
+          <img src="/static/guia/img/accesos-reset.png" alt="Opciones para restablecer la contraseña">
+          <i class="pin" style="--x:519;--y:508">1</i>
+          <i class="pin" style="--x:690;--y:508">2</i>
+        </figure>
+        <div>
+          <ol class="steps">
+            <li>Abre <strong>Accesos</strong> en la tarjeta de la clínica.</li>
+            <li>Pulsa <strong>Restablecer contraseña</strong>, junto al correo de la persona.</li>
+            <li>Elige una de las dos opciones.</li>
+          </ol>
+          <ol class="legend">
+            <li><strong>Enviar enlace por correo.</strong> Es la opción recomendada. La persona recibe un mensaje de OrthoRad y elige su propia contraseña. El enlace funciona una vez y vence en 1 hora.</li>
+            <li><strong>Generar contraseña temporal.</strong> Úsala si el correo no llega. Aparece una contraseña nueva, una sola vez, que debes entregar a la persona.</li>
+          </ol>
+          <div class="note">
+            <b class="t">Si pides el enlace dos veces seguidas</b>
+            <p>Espera un minuto entre un envío y otro. El sistema te avisará si lo pediste demasiado pronto.</p>
+          </div>
+          <div class="note">
+            <b class="t">Las clínicas también pueden hacerlo solas</b>
+            <p>En <strong>www.orthorad-smj.com/portal-socios</strong> existe el enlace <strong>¿Olvidaste tu contraseña?</strong>. Cualquiera de las dos opciones queda registrada en el Historial.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== HISTORIAL ===== -->
+    <section class="chapter" id="historial">
+      <div class="eyebrow">Capítulo 8</div>
+      <h2>Historial</h2>
+      <p class="purpose">El registro de lo que hace cada persona del personal: quién lo hizo, cuándo y sobre qué. Sirve para revisar un cambio o aclarar una duda. Solo se consulta, no se modifica.</p>
+
+      <figure class="shot" style="--w:1191;--h:800;--ox:249;--oy:0">
+        <img src="/static/guia/img/historial.png" alt="Historial de acciones">
+        <i class="pin" style="--x:345;--y:95">1</i>
+        <i class="pin" style="--x:420;--y:143">2</i>
+        <i class="pin" style="--x:766;--y:203">3</i>
+        <i class="pin" style="--x:1374;--y:198">4</i>
+        <i class="pin" style="--x:902;--y:731">5</i>
+      </figure>
+      <ol class="legend">
+        <li><strong>Total de registros.</strong> Cuántas acciones hay con los filtros actuales.</li>
+        <li><strong>Encabezados con flecha.</strong> Al pulsarlos puedes acotar la lista por fecha, usuario, rol, acción u objeto.</li>
+        <li><strong>Acción.</strong> El tipo de cambio: <span class="chip k">Creación</span> <span class="chip m">Edición</span> <span class="chip r">Eliminación</span></li>
+        <li><strong>Flecha de la derecha.</strong> Despliega el detalle completo de esa acción.</li>
+        <li><strong>Anterior y Siguiente.</strong> Pasan de una página a otra.</li>
+      </ol>
+      <div class="note">
+        <b class="t">Qué queda registrado</b>
+        <p>Crear, editar y eliminar citas, pacientes y clínicas, dar o quitar accesos y restablecer contraseñas.</p>
+      </div>
+    </section>
+
+    <!-- ===== FAQ ===== -->
+    <section class="chapter" id="faq">
+      <div class="eyebrow">Capítulo 9</div>
+      <h2>Preguntas frecuentes</h2>
+      <div class="faq">
+        <details>
+          <summary>Un paciente dice que no puede ver sus resultados</summary>
+          <div>
+            <p>Revisa dos cosas:</p>
+            <p>1. En <strong>Pacientes</strong>, comprueba que tenga <strong>fecha de nacimiento</strong>. Si dice «Sin fecha de nacimiento», edítalo con el lápiz.</p>
+            <p>2. En <strong>Reportes</strong>, comprueba que su estudio aparezca como <strong>Subido</strong>.</p>
+          </div>
+        </details>
+        <details>
+          <summary>Una clínica no recibió el aviso de resultados</summary>
+          <div>
+            <p>Entra a <strong>Socios</strong> y pulsa <strong>Editar</strong> en la clínica. Revisa que el <strong>correo de contacto</strong> esté bien escrito. Pide también que revisen su carpeta de spam.</p>
+          </div>
+        </details>
+        <details>
+          <summary>Una clínica no puede entrar al portal</summary>
+          <div>
+            <p>Abre <strong>Accesos</strong> en su tarjeta y usa <strong>Restablecer contraseña</strong>. Si el correo no llega, genera una contraseña temporal. Comprueba también que la clínica esté marcada como <strong>Activa</strong> en Editar.</p>
+          </div>
+        </details>
+        <details>
+          <summary>Me equivoqué al agendar una cita</summary>
+          <div>
+            <p>En <strong>Citas</strong>, pulsa el lápiz de esa fila para corregirla, o la papelera para eliminarla.</p>
+          </div>
+        </details>
+        <details>
+          <summary>¿Cómo sé quién hizo un cambio?</summary>
+          <div>
+            <p>Entra a <strong>Historial</strong>. Cada acción muestra la persona, la fecha y la hora.</p>
+          </div>
+        </details>
+        <details>
+          <summary>Olvidé mi propia contraseña</summary>
+          <div>
+            <p>En la pantalla de entrada pulsa <strong>¿Olvidaste tu contraseña?</strong> y sigue los pasos del capítulo Empezar.</p>
+          </div>
+        </details>
+      </div>
+      <p class="foot">Guía actualizada en noviembre de 2026. Las capturas corresponden a la versión actual del panel.</p>
+    </section>
+
+  </main>
+</div>
+
+<script>
+(function () {
+  var links = Array.prototype.slice.call(document.querySelectorAll(".side a"));
+  var map = {};
+  links.forEach(function (a) { map[a.getAttribute("href").slice(1)] = a; });
+  var sections = Object.keys(map).map(function (id) { return document.getElementById(id); }).filter(Boolean);
+  if (!("IntersectionObserver" in window)) return;
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (!e.isIntersecting) return;
+      links.forEach(function (a) { a.classList.remove("on"); });
+      var a = map[e.target.id];
+      if (a) {
+        a.classList.add("on");
+        if (window.matchMedia("(max-width: 900px)").matches && a.scrollIntoView) {
+          try { a.scrollIntoView({ inline: "center", block: "nearest" }); } catch (err) {}
+        }
+      }
+    });
+  }, { rootMargin: "-20% 0px -70% 0px" });
+  sections.forEach(function (s) { io.observe(s); });
+})();
+</script>
+</body>
+</html>
