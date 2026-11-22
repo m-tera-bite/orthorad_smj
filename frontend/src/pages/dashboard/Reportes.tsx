@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import api from "../../api/client";
 import UploadModal, { AppointmentOption, ReportFile } from "../../components/dashboard/UploadModal";
+import UploadResultsButton from "../../components/dashboard/UploadResultsButton";
 
 interface ReportData {
   id: number;
@@ -116,28 +117,28 @@ export default function Reportes() {
     setShowUpload(true);
   }
 
-  const pendingAppointments: AppointmentOption[] = appointments
-    .filter((a) => (a.report?.files.length ?? 0) === 0)
-    .map((a) => ({
+  function toOption(a: AppointmentRow): AppointmentOption {
+    return {
       id: a.id,
+      time: formatDateTime(a.scheduled_at),
       patient_name: a.patient_name,
       service_name: a.service_name,
       date_of_birth: a.date_of_birth,
       report_access_code: a.report_access_code,
-    }));
+      existingFiles: a.report?.files ?? [],
+    };
+  }
+
+  // Header button: every appointment, those still without results first,
+  // so it stays usable (to add more files) even when nothing is pending.
+  const allAppointmentOptions: AppointmentOption[] = [
+    ...appointments.filter((a) => (a.report?.files.length ?? 0) === 0),
+    ...appointments.filter((a) => (a.report?.files.length ?? 0) > 0),
+  ].map(toOption);
 
   const modalAppointments: AppointmentOption[] = uploadTarget
-    ? appointments
-        .filter((a) => a.id === uploadTarget)
-        .map((a) => ({
-          id: a.id,
-          patient_name: a.patient_name,
-          service_name: a.service_name,
-          date_of_birth: a.date_of_birth,
-          report_access_code: a.report_access_code,
-          existingFiles: a.report?.files ?? [],
-        }))
-    : pendingAppointments;
+    ? appointments.filter((a) => a.id === uploadTarget).map(toOption)
+    : allAppointmentOptions;
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -147,17 +148,10 @@ export default function Reportes() {
         style={{ backgroundColor: "#cfac8c", padding: "13px 40px" }}
       >
         <h1 className="text-white font-montserrat font-bold text-[20px]">Reportes</h1>
-        <button
+        <UploadResultsButton
           onClick={() => { setUploadTarget(null); setShowUpload(true); }}
-          disabled={pendingAppointments.length === 0}
-          className="flex items-center gap-2 border border-white text-white font-montserrat font-bold text-[12px] rounded-[10px] hover:bg-white/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          style={{ padding: "8px 16px", height: 36 }}
-        >
-          <svg width="13" height="12" viewBox="0 0 13 12" fill="none">
-            <path d="M6.5 1v7M3 4l3.5-3L10 4M1 10h11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          Subir Resultados
-        </button>
+          disabled={appointments.length === 0}
+        />
       </header>
 
       {/* Body */}

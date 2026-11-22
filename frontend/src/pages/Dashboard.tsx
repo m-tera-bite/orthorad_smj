@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import api from "../api/client";
 import NewAppointmentModal from "../components/dashboard/NewAppointmentModal";
 import UploadModal from "../components/dashboard/UploadModal";
+import UploadResultsButton from "../components/dashboard/UploadResultsButton";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -201,22 +202,7 @@ export default function Dashboard() {
         >
           <h1 className="text-white font-montserrat font-bold text-[20px]">Dashboard</h1>
           <div className="flex items-center gap-4">
-            <button
-              onClick={() => setShowUpload(true)}
-              className="flex items-center gap-2 border border-white text-white font-montserrat font-bold text-[12px] rounded-[10px] hover:bg-white/10 transition-colors"
-              style={{ padding: "8px 16px", height: 36 }}
-            >
-              <svg width="13" height="12" viewBox="0 0 13 12" fill="none">
-                <path
-                  d="M6.5 1v7M3 4l3.5-3L10 4M1 10h11"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              Subir Resultados
-            </button>
+            <UploadResultsButton onClick={() => setShowUpload(true)} />
             <button
               onClick={() => setShowNew(true)}
               className="flex items-center gap-2 text-white font-montserrat font-bold text-[12px] rounded-[10px] hover:opacity-80 transition-opacity"

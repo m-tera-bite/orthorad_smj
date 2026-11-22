@@ -3,6 +3,8 @@ import { useSearchParams } from "react-router-dom";
 import api from "../../api/client";
 import NewAppointmentModal from "../../components/dashboard/NewAppointmentModal";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
+import UploadModal, { AppointmentOption, ReportFile } from "../../components/dashboard/UploadModal";
+import UploadResultsButton from "../../components/dashboard/UploadResultsButton";
 
 interface Appointment {
   id: number;
@@ -17,6 +19,8 @@ interface Appointment {
   room: string;
   notes: string;
   status: string;
+  report_access_code?: string | null;
+  report: { files: ReportFile[] } | null;
 }
 
 const STATUS_OPTIONS = [
@@ -57,6 +61,7 @@ export default function Citas() {
   const [showNew, setShowNew] = useState(false);
   const [editing, setEditing] = useState<Appointment | null>(null);
   const [deleting, setDeleting] = useState<Appointment | null>(null);
+  const [showUpload, setShowUpload] = useState(false);
 
   function buildUrl() {
     const params = new URLSearchParams();
@@ -93,6 +98,40 @@ export default function Citas() {
     setAppointments((prev) => prev.filter((a) => a.id !== appt.id));
   }
 
+  // Keep the listed appointments' file lists current so reopening the
+  // modal shows what was just uploaded under "Archivos subidos".
+  function handleUploaded(appointmentId: number, _uploadedAt: string, newFiles: ReportFile[]) {
+    setAppointments((prev) =>
+      prev.map((a) =>
+        a.id === appointmentId
+          ? { ...a, report: { ...(a.report ?? {}), files: [...(a.report?.files ?? []), ...newFiles] } }
+          : a
+      )
+    );
+  }
+
+  function handleFileDeleted(appointmentId: number, fileId: number) {
+    setAppointments((prev) =>
+      prev.map((a) =>
+        a.id === appointmentId && a.report
+          ? { ...a, report: { ...a.report, files: a.report.files.filter((f) => f.id !== fileId) } }
+          : a
+      )
+    );
+  }
+
+  const uploadOptions: AppointmentOption[] = filtered
+    .filter((a) => a.status !== "cancelled")
+    .map((a) => ({
+      id: a.id,
+      time: dateFilter === "today" ? formatTime(a.scheduled_at) : `${formatDate(a.scheduled_at)} ${formatTime(a.scheduled_at)}`,
+      patient_name: a.patient_name,
+      service_name: a.service_name,
+      date_of_birth: a.date_of_birth,
+      report_access_code: a.report_access_code,
+      existingFiles: a.report?.files ?? [],
+    }));
+
   const DATE_FILTERS: { key: DateFilter; label: string }[] = [
     { key: "today", label: "Hoy" },
     { key: "week", label: "Esta semana" },
@@ -109,6 +148,11 @@ export default function Citas() {
         <h1 className="text-white font-montserrat font-bold text-[20px]">
           Citas{emailFilter ? ` · ${emailFilter}` : ""}
         </h1>
+        <div className="flex items-center gap-4">
+          <UploadResultsButton
+            onClick={() => setShowUpload(true)}
+            disabled={uploadOptions.length === 0}
+          />
         <button
           onClick={() => setShowNew(true)}
           className="flex items-center gap-2 text-white font-montserrat font-bold text-[12px] rounded-[10px] hover:opacity-80 transition-opacity"
@@ -119,6 +163,7 @@ export default function Citas() {
           </svg>
           Nueva Cita
         </button>
+        </div>
       </header>
 
       {/* Body */}
@@ -265,6 +310,15 @@ export default function Citas() {
           </div>
         )}
       </main>
+
+      {showUpload && uploadOptions.length > 0 && (
+        <UploadModal
+          appointments={uploadOptions}
+          onClose={() => setShowUpload(false)}
+          onUploaded={handleUploaded}
+          onFileDeleted={handleFileDeleted}
+        />
+      )}
 
       {showNew && (
         <NewAppointmentModal

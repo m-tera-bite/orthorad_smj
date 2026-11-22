@@ -54,20 +54,42 @@ export default function UploadModal({ appointments, onClose, onUploaded, onFileD
 
   // Reopening the modal (e.g. from the minimized bar) onto a job already in
   // progress should clear its minimized flag exactly once, on mount.
+  //
+  // A job that already finished successfully and was NOT minimized is
+  // leftover state (its files are already listed under "Archivos subidos"),
+  // so drop it instead — otherwise its done files reappear as if they were
+  // about to be uploaded again and new files get attached to a finished job.
   useEffect(() => {
-    if (job) reopenJob(job.appointmentId);
+    if (!job) return;
+    if (job.phase === "success" && !job.minimized) dismissJob(job.appointmentId);
+    else reopenJob(job.appointmentId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Same cleanup when switching appointments in the selector.
+  const lastSelectedRef = useRef(selectedId);
   useEffect(() => {
-    const appt = appointments.find((a) => a.id === selectedId);
-    setExistingFiles(appt?.existingFiles ?? []);
+    if (lastSelectedRef.current === selectedId) return;
+    lastSelectedRef.current = selectedId;
+    if (job && job.phase === "success") dismissJob(job.appointmentId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId]);
+
+  // Parents rebuild `appointments` on every render, so only the selection
+  // change may reset the draft — otherwise any parent update (e.g. after
+  // deleting an existing file) would silently wipe the files just picked.
+  useEffect(() => {
     if (!isJobForSelected) {
       setDraftFiles([]);
       setDraftNotifyPatient(false);
     }
     setError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId]);
+
+  useEffect(() => {
+    const appt = appointments.find((a) => a.id === selectedId);
+    setExistingFiles(appt?.existingFiles ?? []);
   }, [selectedId, appointments]);
 
   // Auto-close (not minimize) once a job we're currently displaying finishes
@@ -81,6 +103,8 @@ export default function UploadModal({ appointments, onClose, onUploaded, onFileD
     const prevPhase = prevPhaseRef.current;
     prevPhaseRef.current = job ? job.phase : null;
     if (job && prevPhase === "running" && job.phase === "success") {
+      // Clear the finished job so reopening this appointment starts fresh.
+      dismissJob(job.appointmentId);
       onClose();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -101,9 +125,16 @@ export default function UploadModal({ appointments, onClose, onUploaded, onFileD
     }
   }
 
-  const pendingFiles: PendingUpload[] = job
-    ? job.files
-    : draftFiles.map((file) => ({ file, status: "pending", progress: 0 }));
+  // Keep each entry's index in the underlying list so removing one still
+  // targets the right file even when some are hidden below.
+  const allPending: { p: PendingUpload; index: number }[] = job
+    ? job.files.map((p, index) => ({ p, index }))
+    : draftFiles.map((file, index) => ({ p: { file, status: "pending", progress: 0 }, index }));
+  // Once a job has fully succeeded its files are already in "Archivos
+  // subidos" — don't list them a second time as pending.
+  const visiblePending =
+    job?.phase === "success" ? allPending.filter(({ p }) => p.status !== "done") : allPending;
+  const pendingFiles: PendingUpload[] = visiblePending.map(({ p }) => p);
   const notifyPatient = job ? job.notifyPatient : draftNotifyPatient;
   const uploading = job?.phase === "running";
   const isQueued = job?.phase === "queued";
@@ -114,7 +145,7 @@ export default function UploadModal({ appointments, onClose, onUploaded, onFileD
   }
 
   function addFiles(list: FileList | null) {
-    if (!list) return;
+    if (!list || list.length === 0) return;
     const files = Array.from(list);
     if (job) addFilesToJob(job.appointmentId, files);
     else setDraftFiles((prev) => [...prev, ...files]);
@@ -128,7 +159,9 @@ export default function UploadModal({ appointments, onClose, onUploaded, onFileD
   function handleUpload() {
     if (!selectedId || pendingFiles.length === 0) return;
     if (job) {
-      if (hasErrors) retryFailed(job.appointmentId);
+      // Re-run the job for failed/canceled files AND any files added after
+      // it stopped (runJob skips the ones already done).
+      if (!uploading && !isQueued && (hasErrors || hasNewFiles)) retryFailed(job.appointmentId);
     } else {
       const current = appointments.find((a) => a.id === selectedId);
       startJob(Number(selectedId), current?.patient_name ?? "la cita", draftFiles, draftNotifyPatient, onUploaded);
@@ -156,6 +189,7 @@ export default function UploadModal({ appointments, onClose, onUploaded, onFileD
   const hasExisting = existingFiles.length > 0;
   const hasPending = pendingFiles.length > 0;
   const hasErrors = pendingFiles.some((p) => p.status === "error" || p.status === "canceled");
+  const hasNewFiles = pendingFiles.some((p) => p.status === "pending");
   const remainingCount = pendingFiles.filter((p) => p.status !== "done").length;
 
   return (
@@ -313,7 +347,11 @@ export default function UploadModal({ appointments, onClose, onUploaded, onFileD
                 className="hidden"
                 accept="image/*,.pdf,.dcm"
                 multiple
-                onChange={(e) => addFiles(e.target.files)}
+                onChange={(e) => {
+                  addFiles(e.target.files);
+                  // Reset so picking the same file again still fires onChange.
+                  e.target.value = "";
+                }}
               />
               <svg className="mx-auto text-alternative mb-2" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" strokeLinecap="round" strokeLinejoin="round" />
@@ -327,7 +365,7 @@ export default function UploadModal({ appointments, onClose, onUploaded, onFileD
             {/* Pending file queue */}
             {hasPending && (
               <ul className="mt-2 space-y-1">
-                {pendingFiles.map((p, i) => (
+                {visiblePending.map(({ p, index: i }) => (
                   <li key={i} className="bg-secondary/5 rounded-[8px] px-3 py-2">
                     <div className="flex items-center gap-2">
                       <span className="flex-1 font-quicksand text-sm text-text truncate min-w-0">
@@ -434,9 +472,9 @@ export default function UploadModal({ appointments, onClose, onUploaded, onFileD
                   ? "Subiendo..."
                   : isQueued && !hasErrors
                   ? "En cola…"
-                  : hasErrors
+                  : hasErrors && !hasNewFiles
                   ? `Reintentar${remainingCount > 1 ? ` (${remainingCount})` : ""}`
-                  : `Subir${pendingFiles.length > 1 ? ` (${pendingFiles.length})` : ""}`}
+                  : `Subir${remainingCount > 1 ? ` (${remainingCount})` : ""}`}
               </button>
             )}
           </div>
