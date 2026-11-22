@@ -1,5 +1,6 @@
 import secrets
 
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
@@ -23,7 +24,13 @@ from .serializers import (
     PartnerSerializer,
     PartnerUserSerializer,
 )
-from .supabase_admin import create_supabase_user
+from .supabase_admin import (
+    NO_KEY_MESSAGE,
+    create_supabase_user,
+    find_supabase_user_id,
+    send_recovery_email,
+    set_supabase_password,
+)
 
 _PARTNER_TRACKED_FIELDS = ["name", "contact_name", "email", "phone", "is_active"]
 
@@ -198,6 +205,90 @@ class PartnerViewSet(viewsets.ModelViewSet):
             # Shown once to staff so they can hand credentials to the partner.
             payload["temp_password"] = password
         return Response(payload, status=201)
+
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path=r"users/(?P<link_id>\d+)/reset-password",
+    )
+    def reset_user_password(self, request, pk=None, link_id=None):
+        """Reset a partner user's password.
+
+        mode="email": Supabase emails the user a reset link.
+        mode="temp":  set a random password and return it once to staff.
+        """
+        partner = self.get_object()
+        try:
+            link = partner.users.select_related("user").get(pk=link_id)
+        except PartnerUser.DoesNotExist:
+            return Response({"detail": "Usuario no encontrado."}, status=404)
+
+        mode = request.data.get("mode", "email")
+        if mode not in ("email", "temp"):
+            return Response({"detail": "Modo inválido."}, status=400)
+
+        email = (link.user.email or "").strip().lower()
+        if not email:
+            return Response({"detail": "El usuario no tiene correo registrado."}, status=400)
+
+        user_id, state = find_supabase_user_id(email)
+        if state == "no_key":
+            return Response({"detail": NO_KEY_MESSAGE}, status=503)
+        if state == "error":
+            return Response(
+                {"detail": "No se pudo consultar la cuenta en Supabase. Intenta de nuevo."},
+                status=502,
+            )
+
+        payload = {"correo": email, "mode": mode}
+
+        if mode == "email":
+            if state == "missing":
+                return Response(
+                    {
+                        "detail": (
+                            "Este usuario aún no tiene cuenta de acceso. "
+                            "Genera una contraseña temporal para crearla."
+                        ),
+                        "account_missing": True,
+                    },
+                    status=400,
+                )
+            redirect_to = f"{settings.SITE_URL.rstrip('/')}/restablecer-contrasena"
+            ok, message = send_recovery_email(email, redirect_to)
+            if not ok:
+                return Response({"detail": message}, status=502)
+            payload["message"] = message
+        else:
+            password = secrets.token_urlsafe(9)
+            if state == "missing":
+                ok, message = create_supabase_user(email, password)
+            else:
+                ok, message = set_supabase_password(user_id, password)
+            if not ok:
+                return Response({"detail": message}, status=502)
+            payload["temp_password"] = password  # shown once to staff
+            payload["message"] = (
+                "Cuenta creada con una contraseña temporal."
+                if state == "missing"
+                else "Contraseña temporal generada."
+            )
+
+        log_action(
+            request,
+            AuditLog.Action.UPDATE,
+            object_type="partner_user",
+            object_id=link.id,
+            description=(
+                f"Envió un enlace para restablecer la contraseña de {email} "
+                f"(clínica “{partner.name}”)"
+                if mode == "email"
+                else f"Generó una contraseña temporal para {email} "
+                f"(clínica “{partner.name}”)"
+            ),
+            details={"correo": email, "clinica": partner.name, "modo": mode},
+        )
+        return Response(payload)
 
     @action(detail=True, methods=["delete"], url_path=r"users/(?P<link_id>\d+)")
     def remove_user(self, request, pk=None, link_id=None):

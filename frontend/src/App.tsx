@@ -12,6 +12,8 @@ import Agenda from "./pages/Agenda";
 import PortalCliente from "./pages/PortalCliente";
 import PortalSocios from "./pages/PortalSocios";
 import Login from "./pages/Login";
+import RecuperarContrasena from "./pages/RecuperarContrasena";
+import RestablecerContrasena from "./pages/RestablecerContrasena";
 import Dashboard from "./pages/Dashboard";
 import Pacientes from "./pages/dashboard/Pacientes";
 import Reportes from "./pages/dashboard/Reportes";
@@ -34,6 +36,8 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/portal-cliente" element={<PortalCliente />} />
           <Route path="/portal-socios" element={<PortalSocios />} />
+          <Route path="/recuperar-contrasena" element={<RecuperarContrasena />} />
+          <Route path="/restablecer-contrasena" element={<RestablecerContrasena />} />
         </Route>
 
         {/* Staff dashboard — full-screen, nested routes */}

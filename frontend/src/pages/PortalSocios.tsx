@@ -1,11 +1,12 @@
 import { useState, FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { asset } from "@/lib/asset";
 import { useAuth } from "../context/AuthContext";
 
 export default function PortalSocios() {
   const { login, logout } = useAuth();
   const navigate = useNavigate();
+  const notice = (useLocation().state as { notice?: string } | null)?.notice;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -92,6 +93,7 @@ export default function PortalSocios() {
               />
             </div>
 
+            {notice && <p className="text-green-300 text-xs font-quicksand">{notice}</p>}
             {error && <p className="text-red-300 text-xs font-quicksand">{error}</p>}
 
             <button
@@ -101,6 +103,15 @@ export default function PortalSocios() {
             >
               {loading ? "Verificando..." : "Acceder al Portal"}
             </button>
+
+            <p className="text-center">
+              <Link
+                to="/recuperar-contrasena?origen=socios"
+                className="text-alternative/80 text-xs font-quicksand underline hover:text-white"
+              >
+                ¿Olvidaste tu contraseña?
+              </Link>
+            </p>
 
             <p className="text-alternative/70 text-[11px] font-quicksand text-center">
               ¿Sin acceso? Contacta a OrthoRad para solicitar tu cuenta de clínica asociada.

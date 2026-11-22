@@ -168,6 +168,8 @@ function UsersModal({ partner, onClose, onChanged }: { partner: Partner; onClose
   const [error, setError] = useState<string | null>(null);
   const [credentials, setCredentials] = useState<{ email: string; password: string } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [resetFor, setResetFor] = useState<number | null>(null);
+  const [resetting, setResetting] = useState(false);
 
   function load() {
     api
@@ -198,6 +200,29 @@ function UsersModal({ partner, onClose, onChanged }: { partner: Partner; onClose
       setError(err?.response?.data?.detail ?? "No se pudo agregar el usuario.");
     } finally {
       setAdding(false);
+    }
+  }
+
+  async function handleReset(u: PartnerUserRow, mode: "email" | "temp") {
+    setResetting(true);
+    setError(null);
+    setNotice(null);
+    setCredentials(null);
+    try {
+      const { data } = await api.post(
+        `/partners/${partner.id}/users/${u.id}/reset-password/`,
+        { mode }
+      );
+      if (data.temp_password) {
+        setCredentials({ email: data.correo, password: data.temp_password });
+      } else {
+        setNotice(`${data.message} (${data.correo})`);
+      }
+      setResetFor(null);
+    } catch (err: any) {
+      setError(err?.response?.data?.detail ?? "No se pudo restablecer la contraseña.");
+    } finally {
+      setResetting(false);
     }
   }
 
@@ -247,7 +272,7 @@ function UsersModal({ partner, onClose, onChanged }: { partner: Partner; onClose
           {credentials && (
             <div className="bg-[#3f6e7a]/10 border border-[#3f6e7a] rounded-[10px] p-4">
               <p className="text-[#3f6e7a] font-montserrat font-bold text-[13px] mb-1">
-                Cuenta creada — comparte estas credenciales (se muestran una sola vez):
+                Comparte estas credenciales (se muestran una sola vez):
               </p>
               <p className="text-text font-quicksand text-sm">Usuario: <strong>{credentials.email}</strong></p>
               <p className="text-text font-quicksand text-sm">Contraseña temporal: <strong>{credentials.password}</strong></p>
@@ -267,14 +292,43 @@ function UsersModal({ partner, onClose, onChanged }: { partner: Partner; onClose
           ) : (
             <ul className="divide-y divide-divider border border-divider rounded-[10px] overflow-hidden">
               {users.map((u) => (
-                <li key={u.id} className="flex items-center justify-between px-4 py-2.5 bg-white">
-                  <span className="text-text font-quicksand text-sm truncate">{u.email}</span>
-                  <button
-                    onClick={() => handleRemove(u.id)}
-                    className="text-red-600 hover:text-red-800 font-quicksand text-[12px] font-semibold"
-                  >
-                    Quitar acceso
-                  </button>
+                <li key={u.id} className="px-4 py-2.5 bg-white">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-text font-quicksand text-sm truncate">{u.email}</span>
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <button
+                        onClick={() => setResetFor(resetFor === u.id ? null : u.id)}
+                        disabled={resetting}
+                        className="text-action-dark hover:text-primary font-quicksand text-[12px] font-semibold disabled:opacity-50"
+                      >
+                        Restablecer contraseña
+                      </button>
+                      <button
+                        onClick={() => handleRemove(u.id)}
+                        className="text-red-600 hover:text-red-800 font-quicksand text-[12px] font-semibold"
+                      >
+                        Quitar acceso
+                      </button>
+                    </div>
+                  </div>
+                  {resetFor === u.id && (
+                    <div className="mt-2 flex flex-wrap gap-2 bg-background rounded-[10px] p-2.5">
+                      <button
+                        onClick={() => handleReset(u, "email")}
+                        disabled={resetting}
+                        className="bg-action-dark text-white px-3 py-1.5 rounded-[8px] font-quicksand font-semibold text-[12px] hover:bg-action-dark/80 disabled:opacity-50"
+                      >
+                        {resetting ? "Enviando..." : "Enviar enlace por correo"}
+                      </button>
+                      <button
+                        onClick={() => handleReset(u, "temp")}
+                        disabled={resetting}
+                        className="border border-primary text-primary px-3 py-1.5 rounded-[8px] font-quicksand font-semibold text-[12px] hover:bg-primary hover:text-white disabled:opacity-50"
+                      >
+                        Generar contraseña temporal
+                      </button>
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>

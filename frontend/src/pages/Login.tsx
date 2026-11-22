@@ -1,10 +1,11 @@
 import { useState, FormEvent } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const notice = (useLocation().state as { notice?: string } | null)?.notice;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -69,6 +70,7 @@ export default function Login() {
             />
           </div>
 
+          {notice && <p className="text-action-dark text-sm font-quicksand">{notice}</p>}
           {error && <p className="text-red-600 text-sm font-quicksand">{error}</p>}
 
           <button
@@ -78,6 +80,15 @@ export default function Login() {
           >
             {loading ? "Ingresando..." : "Entrar"}
           </button>
+
+          <p className="text-center">
+            <Link
+              to="/recuperar-contrasena?origen=staff"
+              className="text-action text-sm font-quicksand underline"
+            >
+              ¿Olvidaste tu contraseña?
+            </Link>
+          </p>
         </form>
 
         <p className="text-center text-sm text-text mt-6 font-quicksand">

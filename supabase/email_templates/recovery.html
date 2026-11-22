@@ -1,0 +1,72 @@
+<!--
+  Supabase → Authentication → Email Templates → "Reset Password"
+
+  Subject:  Restablece tu contraseña de OrthoRad
+
+  Paste this HTML as the template body. Before using it:
+    1. The logo URL uses the production domain (https://www.orthorad-smj.com); change it only if SITE_URL changes.
+    2. The button must keep the {{ .RedirectTo }}?token_hash=... link: the app
+       verifies the token itself (so email-security scanners that pre-open links
+       can't consume it) and the link also works when staff trigger the email.
+    3. Authentication → URL Configuration → Redirect URLs must include
+       https://<domain>/restablecer-contrasena (and http://localhost:5173/restablecer-contrasena for dev).
+-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Restablece tu contraseña de OrthoRad</title>
+</head>
+<body style="margin:0; padding:0; background-color:#F5EDE3;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#F5EDE3; padding:32px 16px;">
+  <tr>
+    <td align="center">
+      <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="max-width:480px; width:100%; background-color:#FFFCF7; border-radius:12px; overflow:hidden;">
+        <tr>
+          <td align="center" style="padding:32px 32px 16px;">
+            <img src="https://www.orthorad-smj.com/static/react/images/logo.png" width="180" alt="OrthoRad" style="display:block; width:180px; max-width:180px; height:auto;">
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:8px 32px 24px; font-family:Arial, Helvetica, sans-serif; color:#4A4A4A; font-size:15px; line-height:1.6;">
+            <p style="margin:0 0 16px; font-size:18px; font-weight:bold; color:#5C3317;">Restablece tu contraseña</p>
+            <p style="margin:0 0 16px;">Hola,</p>
+            <p style="margin:0 0 16px;">
+              Recibimos una solicitud para restablecer la contraseña de tu cuenta de
+              <strong>OrthoRad</strong> (<strong>{{ .Email }}</strong>).
+              Haz clic en el botón para elegir una nueva contraseña.
+            </p>
+            <p style="margin:0;">Este enlace funciona una sola vez y vence en 1 hora.</p>
+          </td>
+        </tr>
+        <tr>
+          <td align="center" style="padding:0 32px 28px;">
+            <table role="presentation" cellpadding="0" cellspacing="0">
+              <tr>
+                <td align="center" bgcolor="#4F8A7B" style="border-radius:8px;">
+                  <a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=recovery" target="_blank" style="display:inline-block; padding:14px 32px; font-family:Arial, Helvetica, sans-serif; font-size:15px; font-weight:bold; color:#FFFFFF; text-decoration:none;">
+                    Crear nueva contraseña
+                  </a>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:0 32px 24px; font-family:Arial, Helvetica, sans-serif; color:#4A4A4A; font-size:13px; line-height:1.6;">
+            Si no solicitaste este cambio, puedes ignorar este correo: tu contraseña actual
+            seguirá funcionando.
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:16px 32px 28px; border-top:1px solid #F5EDE3; font-family:Arial, Helvetica, sans-serif; color:#4A4A4A; font-size:11px; line-height:1.6;" align="center">
+            Este es un mensaje automático de OrthoRad. Por favor no respondas a este correo.
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>

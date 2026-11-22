@@ -45,12 +45,13 @@ export default function EditPatientModal({ patient, onClose, onSaved }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto py-6"
       style={{ backgroundColor: "rgba(92,51,23,0.4)" }}
       onClick={(e) => e.target === e.currentTarget && !loading && onClose()}
     >
-      <div className="bg-background-alt rounded-[10px] w-full max-w-md mx-4 overflow-hidden shadow-xl">
-        <div className="bg-primary px-6 py-4 flex items-center justify-between">
+      {/* No overflow-hidden here: it would clip the DatePicker popup. */}
+      <div className="bg-background-alt rounded-[10px] w-full max-w-md mx-4 my-auto shadow-xl">
+        <div className="bg-primary px-6 py-4 flex items-center justify-between rounded-t-[10px]">
           <h2 className="text-white font-montserrat font-bold text-[18px]">Editar Paciente</h2>
           <button
             onClick={onClose}

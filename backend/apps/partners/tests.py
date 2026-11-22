@@ -207,6 +207,91 @@ class PartnerPortalTestCase(APITestCase):
         res = self.client.delete(f"/api/partners/{self.partner_a.id}/users/{link.id}/")
         self.assertEqual(res.status_code, 204)
 
+    # ---------------- password reset ----------------
+
+    def _reset_url(self, partner, link):
+        return f"/api/partners/{partner.id}/users/{link.id}/reset-password/"
+
+    def test_reset_password_requires_staff(self):
+        link = self.user_a.partner_link
+        url = self._reset_url(self.partner_a, link)
+        self.assertIn(self.client.post(url, {"mode": "email"}).status_code, (401, 403))
+        self.client.force_authenticate(self.user_a)
+        self.assertEqual(self.client.post(url, {"mode": "email"}).status_code, 403)
+
+    def test_reset_password_link_must_belong_to_partner(self):
+        self.client.force_authenticate(self.staff)
+        url = self._reset_url(self.partner_b, self.user_a.partner_link)
+        self.assertEqual(self.client.post(url, {"mode": "email"}).status_code, 404)
+
+    def test_reset_password_invalid_mode(self):
+        self.client.force_authenticate(self.staff)
+        url = self._reset_url(self.partner_a, self.user_a.partner_link)
+        self.assertEqual(self.client.post(url, {"mode": "nope"}).status_code, 400)
+
+    def test_reset_password_without_service_key(self):
+        self.client.force_authenticate(self.staff)
+        url = self._reset_url(self.partner_a, self.user_a.partner_link)
+        with self.settings(SUPABASE_SERVICE_ROLE_KEY=""):
+            res = self.client.post(url, {"mode": "email"})
+        self.assertEqual(res.status_code, 503)
+
+    def test_reset_password_email_mode(self):
+        from unittest import mock
+
+        from apps.audit.models import AuditLog
+
+        self.client.force_authenticate(self.staff)
+        url = self._reset_url(self.partner_a, self.user_a.partner_link)
+        with mock.patch("apps.partners.views.find_supabase_user_id", return_value=("uid-1", "found")), \
+                mock.patch("apps.partners.views.send_recovery_email", return_value=(True, "ok")) as send, \
+                self.settings(SITE_URL="https://example.com/"):
+            res = self.client.post(url, {"mode": "email"})
+        self.assertEqual(res.status_code, 200, res.content)
+        send.assert_called_once_with(
+            "a@clinica-a.com", "https://example.com/restablecer-contrasena"
+        )
+        self.assertNotIn("temp_password", res.json())
+        self.assertTrue(
+            AuditLog.objects.filter(object_type="partner_user", action=AuditLog.Action.UPDATE).exists()
+        )
+
+    def test_reset_password_email_mode_missing_account(self):
+        from unittest import mock
+
+        self.client.force_authenticate(self.staff)
+        url = self._reset_url(self.partner_a, self.user_a.partner_link)
+        with mock.patch("apps.partners.views.find_supabase_user_id", return_value=(None, "missing")), \
+                mock.patch("apps.partners.views.send_recovery_email") as send:
+            res = self.client.post(url, {"mode": "email"})
+        self.assertEqual(res.status_code, 400)
+        self.assertTrue(res.json()["account_missing"])
+        send.assert_not_called()
+
+    def test_reset_password_temp_mode(self):
+        from unittest import mock
+
+        self.client.force_authenticate(self.staff)
+        url = self._reset_url(self.partner_a, self.user_a.partner_link)
+        with mock.patch("apps.partners.views.find_supabase_user_id", return_value=("uid-1", "found")), \
+                mock.patch("apps.partners.views.set_supabase_password", return_value=(True, "ok")) as setpw:
+            res = self.client.post(url, {"mode": "temp"})
+        self.assertEqual(res.status_code, 200, res.content)
+        temp = res.json()["temp_password"]
+        self.assertTrue(temp)
+        setpw.assert_called_once_with("uid-1", temp)
+
+    def test_reset_password_temp_mode_creates_missing_account(self):
+        from unittest import mock
+
+        self.client.force_authenticate(self.staff)
+        url = self._reset_url(self.partner_a, self.user_a.partner_link)
+        with mock.patch("apps.partners.views.find_supabase_user_id", return_value=(None, "missing")), \
+                mock.patch("apps.partners.views.create_supabase_user", return_value=(True, "ok")) as create:
+            res = self.client.post(url, {"mode": "temp"})
+        self.assertEqual(res.status_code, 200, res.content)
+        create.assert_called_once_with("a@clinica-a.com", res.json()["temp_password"])
+
     def test_me_endpoint_includes_partner(self):
         self.client.force_authenticate(self.user_a)
         res = self.client.get("/api/portal/me/")
