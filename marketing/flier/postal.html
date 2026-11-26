@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>OrthoRad Postal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Quicksand:wght@500;600;700&display=swap">
+<style>
+/* Postcard 6 × 4 in (landscape) + 0.125 in bleed on every side = 6.25 × 4.25 in pages.
+   Text stays ≥ 0.2 in inside the trim line. */
+@page { size: 6.25in 4.25in; margin: 0; }
+:root {
+  --brown: #5C3317; --brown-dk: #3E220F; --sec: #A0673A; --tan: #CFAC8C;
+  --cream: #F5EDE3; --paper: #FFFCF7; --teal: #3F6E7A; --ink: #3A322C;
+  --safe: 0.325in; /* bleed 0.125 + safe 0.2 */
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body { font-family: "Quicksand", sans-serif; color: var(--ink); }
+.page { width: 6.25in; height: 4.25in; position: relative; overflow: hidden; background: var(--paper); page-break-after: always; break-after: page; }
+.page:last-child { page-break-after: auto; break-after: auto; }
+h1, h2, h3 { font-family: "Montserrat", sans-serif; }
+.qr { flex: none; background: #fff; border-radius: 0.07in; padding: 0.06in; }
+.qr img { display: block; }
+
+/* ---------- FRONT ---------- */
+.front { display: grid; grid-template-columns: 2.85in 1fr; }
+.f-left { padding: var(--safe) 0.18in var(--safe) var(--safe); display: flex; flex-direction: column; }
+.f-left img.logo { height: 0.48in; align-self: flex-start; margin-left: -0.04in; }
+.f-left h1 { margin-top: 0.16in; font-size: 15.5pt; line-height: 1.08; color: var(--brown); letter-spacing: -0.01em; }
+.f-left h1 em { font-style: normal; color: var(--teal); }
+.f-left p { margin-top: 0.08in; font-size: 7.8pt; line-height: 1.4; font-weight: 600; }
+.f-left ul { margin-top: auto; list-style: none; display: grid; gap: 0.06in; }
+.f-left li { display: flex; gap: 0.07in; align-items: center; font: 700 7.6pt/1.25 "Montserrat", sans-serif; color: var(--brown); }
+.f-left li i { flex: none; width: 0.2in; height: 0.2in; border-radius: 0.05in; background: var(--cream); display: grid; place-items: center; color: var(--brown); }
+.f-left li svg { width: 0.12in; height: 0.12in; }
+.f-right { background: var(--brown); position: relative; padding: var(--safe) var(--safe) var(--safe) 0.2in; display: flex; flex-direction: column; justify-content: center; }
+.f-right .tag { font: 700 6.5pt/1 "Montserrat", sans-serif; letter-spacing: .14em; text-transform: uppercase; color: var(--tan); margin-bottom: 0.09in; }
+.shot { border-radius: 0.06in; overflow: hidden; background: #fff; box-shadow: 0 0.04in 0.14in rgba(0, 0, 0, .35); }
+.shot .bar { display: flex; align-items: center; gap: 0.035in; padding: 0.04in 0.06in; background: #EDE4D9; }
+.shot .bar i { width: 0.045in; height: 0.045in; border-radius: 50%; background: #D1BFA9; }
+.shot .bar span { margin-left: 0.04in; font: 600 4.6pt/1 "Quicksand", sans-serif; color: #8A7866; background: #fff; border-radius: 0.03in; padding: 0.02in 0.06in; }
+.shot img { display: block; width: 100%; }
+.f-right .cap { margin-top: 0.1in; font-size: 7pt; line-height: 1.35; color: #EBD6BF; font-weight: 600; }
+
+/* ---------- BACK ---------- */
+.back { display: grid; grid-template-columns: 1fr 2.15in; }
+.b-left { padding: var(--safe) 0.2in var(--safe) var(--safe); display: flex; flex-direction: column; }
+.b-left small { font: 700 6.5pt/1 "Montserrat", sans-serif; letter-spacing: .14em; text-transform: uppercase; color: var(--sec); }
+.b-left h2 { margin-top: 0.05in; font-size: 14pt; line-height: 1.1; color: var(--brown); }
+.steps { margin-top: 0.14in; display: grid; gap: 0.12in; }
+.step { display: grid; grid-template-columns: 0.34in 1fr; gap: 0.09in; align-items: start; }
+.step .n { width: 0.34in; height: 0.34in; border-radius: 0.08in; background: var(--cream); border: 1.3px solid var(--brown); color: var(--brown); font: 800 12pt/0.32in "Montserrat", sans-serif; text-align: center; }
+.step h3 { font-size: 9pt; color: var(--brown); line-height: 1.2; }
+.step p { margin-top: 0.01in; font-size: 7.6pt; line-height: 1.35; font-weight: 600; }
+.step p b { color: var(--brown); }
+.have { margin-top: auto; display: flex; gap: 0.1in; align-items: center; padding: 0.08in 0.1in; border: 1.2px dashed var(--tan); border-radius: 0.08in; }
+.have img { width: 0.62in; height: 0.62in; display: block; }
+.have h3 { font-size: 7.8pt; color: var(--brown); }
+.have p { font-size: 6.6pt; line-height: 1.35; font-weight: 600; margin-top: 0.01in; }
+.have p b { color: var(--teal); white-space: nowrap; }
+.b-left .safe { margin-top: 0.08in; font-size: 6.6pt; line-height: 1.35; font-weight: 600; color: #6B5D50; }
+.b-left .safe b { color: var(--teal); }
+.b-right { background: var(--brown-dk); color: #EBD6BF; padding: var(--safe) var(--safe) var(--safe) 0.2in; display: flex; flex-direction: column; align-items: center; text-align: center; }
+.b-right .qr img { width: 1.02in; height: 1.02in; }
+.b-right h3 { margin-top: 0.09in; font-size: 9.5pt; line-height: 1.15; color: #fff; }
+.b-right .num { margin-top: 0.04in; font: 700 9pt/1 "Montserrat", sans-serif; color: #fff; }
+.b-right .contact { margin-top: auto; width: 100%; padding-top: 0.08in; border-top: 1px solid rgba(207, 172, 140, .3); font-size: 6.4pt; line-height: 1.45; font-weight: 600; }
+.b-right .contact b { color: #fff; }
+</style>
+</head>
+<body>
+
+<!-- ======================= FRONT ======================= -->
+<section class="page front">
+  <div class="f-left">
+    <img class="logo" src="assets/logo.png" alt="OrthoRad Centro Radiológico Dental">
+    <h1>Los resultados de tus pacientes, <em>a&nbsp;un&nbsp;clic.</em></h1>
+    <p>Recibe, ve y descarga los estudios de los pacientes que nos refieres. Sin CDs ni memorias USB.</p>
+    <ul>
+      <li><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/></svg></i>Aviso cuando están listos</li>
+      <li><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M4 19h16"/></svg></i>Imágenes, PDF y CBCT completos</li>
+      <li><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></i>Disponible a cualquier hora</li>
+    </ul>
+  </div>
+  <div class="f-right">
+    <div class="tag">Portal de Clínicas Asociadas</div>
+    <figure class="shot">
+      <div class="bar"><i></i><i></i><i></i><span>orthorad-smj.com/portal-socios</span></div>
+      <img src="assets/portal-resultados.png" alt="Portal mostrando los resultados de los pacientes">
+    </figure>
+    <p class="cap">Todos tus pacientes referidos y sus estudios, en un solo lugar.</p>
+  </div>
+</section>
+
+<!-- ======================= BACK ======================= -->
+<section class="page back">
+  <div class="b-left">
+    <small>Para clínicas dentales</small>
+    <h2>Empieza en 3 pasos</h2>
+    <div class="steps">
+      <div class="step"><div class="n">1</div><div><h3>Solicita tu acceso</h3><p>Escríbenos por <b>WhatsApp</b> o <b>correo</b> con el nombre de tu clínica.</p></div></div>
+      <div class="step"><div class="n">2</div><div><h3>Recibe tu usuario</h3><p>Creamos tu cuenta y te enviamos usuario y contraseña.</p></div></div>
+      <div class="step"><div class="n">3</div><div><h3>Entra y consulta</h3><p>En <b>orthorad-smj.com/portal-socios</b> ves y descargas los resultados.</p></div></div>
+    </div>
+    <div class="have">
+      <img src="assets/qr-portal.svg" alt="Código QR para entrar al portal">
+      <div><h3>¿Tu clínica ya tiene acceso?</h3><p>Escanea para entrar al portal: <b>orthorad-smj.com/portal-socios</b></p></div>
+    </div>
+    <p class="safe"><b>Seguro y privado:</b> cada clínica ve solo a los pacientes que ella refirió.</p>
+  </div>
+  <div class="b-right">
+    <div class="qr"><img src="assets/qr-whatsapp.svg" alt="Código QR para escribir por WhatsApp"></div>
+    <h3>Escanea y pide tu acceso por WhatsApp</h3>
+    <div class="num">+502 3162 8739</div>
+    <div class="contact">
+      <b>soporte@orthorad-smj.com</b><br>
+      San Martín Jilotepeque,<br>barrio El Calvario
+    </div>
+  </div>
+</section>
+
+</body>
+</html>

@@ -47,7 +47,7 @@ export default function Footer() {
             </li>
             <li className="flex gap-2">
               <span>✉</span>
-              <span>contacto@orthorad.com</span>
+              <span>soporte@orthorad-smj.com</span>
             </li>
           </ul>
           {/* Social icons */}
