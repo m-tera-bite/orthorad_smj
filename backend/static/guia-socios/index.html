@@ -1,0 +1,660 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Guía Clínicas Asociadas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700&family=Quicksand:wght@400;500;600;700&display=swap">
+<style>
+/* Same layout as the staff guide (/guia): brown hero with quick tasks, sticky chapter index,
+   long-form chapters. Screens are drawn in HTML with the portal's own colors, with numbered
+   coral pins that match the legend beside them. */
+:root {
+  --font-head: "Montserrat", "Segoe UI", Arial, sans-serif;
+  --font-body: "Quicksand", "Segoe UI", Arial, sans-serif;
+
+  --bg: #FFFCF7;
+  --surface: #F5EDE3;
+  --card: #FFFFFF;
+  --ink: #3F3A36;
+  --head: #5C3317;
+  --muted: #7B6A5C;
+  --line: #E6D9CA;
+  --accent: #3F6E7A;
+  --accent-ink: #FFFFFF;
+  --tan: #CFAC8C;
+  --hero: #5C3317;
+  --hero-ink: #FFF6EA;
+  --pin: #C8401A;
+  --warn-bg: #FBEBD7;
+  --warn-line: #E2B27A;
+  --new-bg: #E3F0F2;
+  --new-line: #9CC3CC;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #17110D; --surface: #241A14; --card: #1F1712; --ink: #E7DCCF; --head: #F0D9C1;
+    --muted: #B7A591; --line: #3B2C22; --accent: #86C4D2; --accent-ink: #10222A; --tan: #CFAC8C;
+    --hero: #3A2010; --hero-ink: #FBF0E3; --pin: #C8401A; --warn-bg: #33241A; --warn-line: #7A5632;
+    --new-bg: #13262B; --new-line: #2F5560;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #17110D; --surface: #241A14; --card: #1F1712; --ink: #E7DCCF; --head: #F0D9C1;
+  --muted: #B7A591; --line: #3B2C22; --accent: #86C4D2; --accent-ink: #10222A; --tan: #CFAC8C;
+  --hero: #3A2010; --hero-ink: #FBF0E3; --pin: #C8401A; --warn-bg: #33241A; --warn-line: #7A5632;
+  --new-bg: #13262B; --new-line: #2F5560;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 76px; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  background: var(--bg); color: var(--ink);
+  font: 400 16px/1.65 var(--font-body);
+  margin: 0;
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--surface); }
+h1, h2, h3 { font-family: var(--font-head); color: var(--head); text-wrap: balance; margin: 0; line-height: 1.2; }
+p { margin: 0 0 12px; }
+a { color: var(--accent); }
+a:focus-visible, summary:focus-visible { outline: 3px solid var(--pin); outline-offset: 2px; border-radius: 4px; }
+strong { font-weight: 700; color: var(--head); }
+.gutter { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+/* ---------- Hero ---------- */
+.hero { background: var(--hero); color: var(--hero-ink); margin-top: calc(-1 * env(safe-area-inset-top, 0px)); padding-top: calc(env(safe-area-inset-top, 0px) + 36px); padding-bottom: 40px; }
+.hero-in { max-width: 1180px; margin: 0 auto; }
+.hero .wordmark { font: 600 30px/1 var(--font-head); letter-spacing: .02em; color: var(--hero-ink); margin-bottom: 28px; }
+.hero .wordmark small { display: block; margin-top: 6px; font: 600 11px/1 var(--font-head); letter-spacing: .14em; text-transform: uppercase; color: var(--tan); }
+.hero h1 { color: var(--hero-ink); font-size: clamp(30px, 5vw, 46px); }
+.hero .lead { max-width: 60ch; margin: 14px 0 28px; font-size: 18px; color: #EBD6BF; }
+.quick-title { font: 700 12px/1 var(--font-head); letter-spacing: .08em; text-transform: uppercase; color: var(--tan); margin-bottom: 12px; }
+.quick { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+.quick a { display: block; text-decoration: none; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.18); border-radius: 12px; padding: 14px 16px; color: var(--hero-ink); font-weight: 600; transition: background .15s; }
+.quick a:hover { background: rgba(255,255,255,.16); }
+.quick a small { display: block; font-weight: 500; color: #D9BFA3; font-size: 13px; margin-top: 2px; }
+
+/* ---------- Layout ---------- */
+.layout { max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 56px; padding-block: 40px 72px; }
+.side { position: sticky; top: 24px; align-self: start; }
+.side p { font: 700 12px/1 var(--font-head); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
+.side ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.side a { display: block; padding: 8px 12px; border-radius: 8px; text-decoration: none; color: var(--ink); font-weight: 600; font-size: 15px; border-left: 3px solid transparent; }
+.side a:hover { background: var(--surface); }
+.side a.on { background: var(--surface); border-left-color: var(--pin); color: var(--head); }
+
+@media (max-width: 900px) {
+  .layout { grid-template-columns: minmax(0, 1fr); gap: 20px; padding-block: 0 56px; }
+  .side { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); padding: 10px max(16px, env(safe-area-inset-left, 0px)); background: var(--bg); border-bottom: 1px solid var(--line); }
+  .side p { display: none; }
+  .side ol { display: flex; overflow-x: auto; gap: 8px; padding-bottom: 2px; }
+  .side a { white-space: nowrap; border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; font-size: 14px; }
+  .side a.on { border-color: var(--pin); }
+}
+
+/* ---------- Chapters ---------- */
+.chapter { padding-bottom: 56px; margin-bottom: 56px; border-bottom: 1px solid var(--line); min-width: 0; }
+.chapter:last-of-type { border-bottom: 0; margin-bottom: 0; }
+.eyebrow { font: 700 12px/1 var(--font-head); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+.chapter > h2 { font-size: clamp(26px, 3.6vw, 34px); margin-bottom: 14px; }
+.chapter h3 { font-size: 20px; margin: 36px 0 12px; }
+.purpose { font-size: 18px; max-width: 62ch; }
+
+/* ---------- Pins and legends ---------- */
+.pin { position: absolute; z-index: 2; left: var(--px, 0); top: var(--py, 50%); transform: translate(-50%, -50%); width: 24px; height: 24px; border-radius: 50%; background: var(--pin); color: #fff; font: 700 12px/24px var(--font-head); text-align: center; font-style: normal; box-shadow: 0 0 0 2px #fff, 0 2px 8px rgba(0, 0, 0, .4); pointer-events: none; }
+.legend { list-style: none; counter-reset: pin; margin: 18px 0 0; padding: 0; display: grid; gap: 10px; }
+.legend li { counter-increment: pin; position: relative; padding-left: 40px; min-height: 28px; }
+.legend li::before { content: counter(pin); position: absolute; left: 0; top: 1px; width: 26px; height: 26px; border-radius: 50%; background: var(--pin); color: #fff; font: 700 13px/26px var(--font-head); text-align: center; }
+
+/* ---------- Steps ---------- */
+.steps { list-style: none; counter-reset: step; margin: 14px 0 0; padding: 0; display: grid; gap: 14px; }
+.steps li { counter-increment: step; position: relative; padding-left: 48px; }
+.steps li::before { content: counter(step); position: absolute; left: 0; top: -2px; width: 32px; height: 32px; border-radius: 10px; background: var(--surface); border: 1.5px solid var(--head); color: var(--head); font: 700 15px/29px var(--font-head); text-align: center; }
+
+.task { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px; align-items: start; margin-top: 8px; }
+.task > * { min-width: 0; }
+@media (max-width: 900px) { .task { grid-template-columns: minmax(0, 1fr); gap: 8px; } }
+
+/* ---------- Callouts ---------- */
+.note { margin: 18px 0 0; padding: 14px 16px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); }
+.note b.t { display: block; font: 700 13px/1.2 var(--font-head); color: var(--head); margin-bottom: 4px; letter-spacing: .02em; }
+.note.warn { background: var(--warn-bg); border-color: var(--warn-line); }
+.note.new { background: var(--new-bg); border-color: var(--new-line); }
+.note p:last-child { margin-bottom: 0; }
+.note ul { margin: 6px 0 0; padding-left: 20px; }
+.note li { margin-bottom: 4px; }
+.tag-new { display: inline-block; vertical-align: middle; margin-left: 8px; padding: 2px 8px; border-radius: 6px; background: var(--accent); color: var(--accent-ink); font: 700 11px/1.5 var(--font-head); letter-spacing: .06em; text-transform: uppercase; }
+
+.states { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 0; }
+.chip { display: inline-block; padding: 4px 12px; border-radius: 8px; color: #fff; font: 700 12px/1.5 var(--font-head); }
+.chip.ok { background: #3F6E7A; } .chip.wait { background: #A0673A; }
+
+/* ---------- FAQ ---------- */
+.faq { display: grid; gap: 10px; margin-top: 18px; }
+details { background: var(--card); border: 1px solid var(--line); border-radius: 12px; }
+summary { cursor: pointer; padding: 14px 18px; font-weight: 700; color: var(--head); list-style: none; display: flex; justify-content: space-between; gap: 12px; }
+summary::-webkit-details-marker { display: none; }
+summary::after { content: "+"; font: 700 20px/1 var(--font-head); color: var(--pin); }
+details[open] summary::after { content: "–"; }
+details > div { padding: 0 18px 16px; }
+details p:last-child { margin-bottom: 0; }
+
+.foot { margin-top: 40px; color: var(--muted); font-size: 14px; }
+
+/* ---------- Screen illustrations ----------
+   Drawn with the portal's real colors (they stay light in dark mode, like a screenshot).
+   Each target element is position:relative so its pin sits on it at any width. */
+.screen { --p: #5C3317; --s: #A0673A; --alt: #CFAC8C; --bgp: #F5EDE3; --bga: #FFFCF7; --tx: #4A4A4A; --dv: #E9E9E9; --act: #3F6E7A;
+  margin: 20px 0 8px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--bga); color: var(--tx);
+  box-shadow: 0 6px 22px rgba(60, 35, 15, .10); font: 500 13px/1.4 var(--font-body); }
+.screen .bar { display: flex; align-items: center; gap: 6px; padding: 8px 12px; background: #EDE4D9; border-bottom: 1px solid #E0D3C3; }
+.screen .bar i { width: 9px; height: 9px; border-radius: 50%; background: #D3C2AE; }
+.screen .bar span { margin-left: 8px; font-size: 11px; color: #8A7866; background: #fff; border-radius: 6px; padding: 2px 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app { display: grid; grid-template-columns: 190px minmax(0, 1fr); min-height: 320px; }
+.app.solo { grid-template-columns: minmax(0, 1fr); }
+.sb { background: var(--p); color: var(--alt); padding: 18px 12px; display: flex; flex-direction: column; gap: 8px; }
+.sb .logo { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.sb .logo b { color: #fff; font: 700 17px/1 var(--font-head); letter-spacing: .02em; }
+.sb .bell { position: relative; width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; color: var(--alt); }
+.sb .bell .n { position: absolute; top: -4px; right: -4px; min-width: 15px; height: 15px; padding: 0 3px; border-radius: 99px; background: #DC2626; color: #fff; font: 700 9px/15px var(--font-head); text-align: center; }
+.sb .clinic { padding: 0 4px 8px; }
+.sb .clinic small { display: block; font: 700 8px/1 var(--font-head); letter-spacing: .14em; text-transform: uppercase; color: var(--alt); margin-bottom: 4px; }
+.sb .clinic b { color: #fff; font: 700 12px/1.2 var(--font-head); }
+.sb .nav { position: relative; display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; font-weight: 600; font-size: 12px; }
+.sb .nav.on { background: #fff; color: var(--p); }
+.sb .spacer { flex: 1; min-height: 30px; }
+.sb .hr { border-top: 1px solid rgba(207, 172, 140, .3); margin: 2px 0; }
+.sb .ro { font-size: 10px; color: rgba(207, 172, 140, .75); padding: 0 4px; line-height: 1.35; }
+.main { min-width: 0; display: flex; flex-direction: column; }
+.hd { background: var(--alt); color: #fff; padding: 10px 18px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.hd b { font: 700 15px/1.2 var(--font-head); }
+.hd .ghost { position: relative; border: 1px solid #fff; border-radius: 8px; padding: 5px 10px; font: 700 10px/1 var(--font-head); white-space: nowrap; }
+.body { padding: 16px 18px 20px; display: flex; flex-direction: column; gap: 12px; }
+.search { position: relative; max-width: 300px; background: #fff; border: 1px solid var(--dv); border-radius: 8px; padding: 7px 10px 7px 28px; color: #9C9C9C; font-size: 12px; }
+.search::before { content: ""; position: absolute; left: 10px; top: 50%; width: 9px; height: 9px; border: 1.5px solid var(--alt); border-radius: 50%; transform: translateY(-60%); }
+.search.typed { color: var(--tx); }
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.tabs span { position: relative; padding: 6px 11px; border-radius: 8px; background: var(--bgp); font-weight: 600; font-size: 11px; }
+.tabs span.on { background: var(--p); color: #fff; }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+.pc { background: #fff; border-radius: 8px; overflow: hidden; border: 1px solid #F0E6DA; }
+.pc .t { background: var(--p); color: #fff; padding: 8px 12px; font: 700 12px/1.2 var(--font-head); }
+.pc .b { padding: 10px 12px; display: grid; gap: 5px; font-size: 11px; }
+.pc .row { display: flex; align-items: center; justify-content: space-between; gap: 6px; border-top: 1px solid var(--dv); padding-top: 7px; margin-top: 2px; }
+.pc .cnt { position: relative; background: var(--s); color: #fff; border-radius: 8px; padding: 1px 7px; font: 700 10px/1.5 var(--font-head); }
+.pc .last { color: #8D8D8D; font-size: 10px; }
+.pc .btn { position: relative; text-align: center; border: 1px solid var(--p); color: var(--p); border-radius: 8px; padding: 5px; font-weight: 600; margin-top: 2px; }
+.tbl { background: #fff; border-radius: 8px; overflow: hidden; border: 1px solid #F0E6DA; }
+.tbl .cap { background: var(--bgp); padding: 9px 14px; color: var(--s); font: 700 12px/1 var(--font-head); }
+.tbl .scroll { overflow-x: auto; }
+.tbl table { width: 100%; border-collapse: collapse; min-width: 560px; font-size: 11px; }
+.tbl th { text-align: left; background: var(--bgp); color: var(--p); font: 700 10px/1 var(--font-head); padding: 8px 12px; }
+.tbl td { padding: 9px 12px; vertical-align: middle; }
+.tbl tr:nth-child(even) td { background: var(--bga); }
+.tbl td.pn { font: 700 11px/1.2 var(--font-head); color: var(--p); }
+.st { position: relative; display: inline-block; color: #fff; border-radius: 8px; padding: 3px 9px; font: 700 10px/1.3 var(--font-head); white-space: nowrap; }
+.st.ok { background: var(--act); } .st.wait { background: var(--s); }
+.file { display: flex; align-items: center; gap: 14px; max-width: 250px; }
+.file + .file { margin-top: 5px; }
+.file .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file .ver { position: relative; color: var(--act); text-decoration: underline; font-weight: 600; }
+.file .dl { position: relative; color: var(--act); display: inline-grid; place-items: center; width: 16px; height: 16px; }
+.dash { color: #B9B9B9; }
+.pop { position: relative; width: 270px; max-width: 100%; background: #fff; border-radius: 8px; box-shadow: 0 10px 30px rgba(60, 35, 15, .22); overflow: hidden; }
+.pop .ph { padding: 9px 12px; border-bottom: 1px solid var(--bgp); color: var(--p); font: 700 11px/1 var(--font-head); }
+.pop .it { position: relative; display: flex; gap: 8px; padding: 9px 12px; border-bottom: 1px solid var(--bgp); font-size: 11px; }
+.pop .it.unread { background: rgba(245, 237, 227, .5); }
+.pop .dot { width: 7px; height: 7px; border-radius: 50%; background: #DC2626; flex-shrink: 0; margin-top: 4px; }
+.pop .it small { display: block; color: #A3A3A3; font-size: 10px; margin-top: 2px; }
+.login { max-width: 330px; margin: 20px auto; background: #fff; border: 1px solid var(--dv); border-radius: 14px; overflow: hidden; }
+.login .top { text-align: center; padding: 18px 20px 14px; }
+.login .top b { display: block; color: var(--p); font: 700 14px/1.2 var(--font-head); margin: 8px 0 3px; }
+.login .top .mark { color: var(--p); font: 700 18px/1 var(--font-head); letter-spacing: .02em; }
+.login .top small { font-size: 11px; }
+.login form { background: var(--p); padding: 16px 20px 18px; display: grid; gap: 10px; }
+.login label { color: #fff; font-size: 11px; font-weight: 600; }
+.login .in { position: relative; border: 1px solid rgba(160, 103, 58, .6); border-radius: 10px; padding: 8px 12px; color: rgba(207, 172, 140, .7); font-size: 11px; margin-top: 4px; }
+.login .go { position: relative; background: var(--act); color: #fff; border-radius: 10px; padding: 9px; text-align: center; font-weight: 700; font-size: 12px; }
+.login .lnk { position: relative; text-align: center; color: rgba(207, 172, 140, .85); text-decoration: underline; font-size: 10px; justify-self: center; }
+.login .help { text-align: center; color: rgba(207, 172, 140, .7); font-size: 9.5px; }
+.cap-note { font-size: 13px; color: var(--muted); margin: 6px 0 0; }
+@media (max-width: 640px) {
+  /* Keep the menu as a column (like the real portal) and let the page area crop. */
+  .app { grid-template-columns: 150px minmax(0, 1fr); }
+  .sb { padding: 14px 10px; }
+  .sb .logo b { font-size: 14px; }
+  .sb .clinic b { font-size: 11px; }
+  .main { overflow: hidden; }
+  .pop .it { padding-right: 18px; }
+}
+</style>
+</head>
+<body>
+<header class="hero gutter">
+  <div class="hero-in">
+    <div class="wordmark">OrthoRad<small>Centro Radiológico Dental</small></div>
+    <h1>Guía para Clínicas Asociadas</h1>
+    <p class="lead">Cómo usar el portal de OrthoRad paso a paso: entrar, encontrar a tus pacientes referidos y ver o descargar sus resultados.</p>
+    <p class="quick-title">¿Qué necesitas hacer hoy?</p>
+    <nav class="quick" aria-label="Tareas frecuentes">
+      <a href="#entrar">Entrar al portal<small>Capítulo Empezar</small></a>
+      <a href="#buscar">Buscar a un paciente<small>Capítulo Resultados</small></a>
+      <a href="#descargar">Ver o descargar archivos<small>Capítulo Resultados</small></a>
+      <a href="#password">Recuperar mi contraseña<small>Capítulo Empezar</small></a>
+    </nav>
+  </div>
+</header>
+
+<div class="layout gutter">
+  <aside class="side" aria-label="Capítulos">
+    <p>Capítulos</p>
+    <ol>
+      <li><a href="#empezar">Empezar</a></li>
+      <li><a href="#portal">El portal</a></li>
+      <li><a href="#pacientes">Pacientes</a></li>
+      <li><a href="#resultados">Resultados</a></li>
+      <li><a href="#avisos">Avisos</a></li>
+      <li><a href="#faq">Preguntas frecuentes</a></li>
+    </ol>
+  </aside>
+
+  <main>
+
+    <!-- ===== EMPEZAR ===== -->
+    <section class="chapter" id="empezar">
+      <div class="eyebrow">Capítulo 1</div>
+      <h2>Empezar</h2>
+      <p class="purpose">Cómo obtener tu acceso, entrar al portal, recuperar tu contraseña y salir de forma segura.</p>
+
+      <div class="note">
+        <b class="t">¿Todavía no tienes acceso?</b>
+        <p>Las cuentas las crea el personal de OrthoRad. Pídeles acceso para tu correo. Te entregarán una <strong>contraseña temporal</strong>, o te llegará un correo para que elijas la tuya. Cada correo pertenece a una sola clínica.</p>
+      </div>
+
+      <h3 id="entrar">Entrar al portal</h3>
+      <div class="task">
+        <figure class="screen" style="margin-top:0" aria-label="Ilustración de la pantalla de acceso al portal">
+          <div class="bar"><i></i><i></i><i></i><span>www.orthorad-smj.com/portal-socios</span></div>
+          <div class="login">
+            <div class="top">
+              <div class="mark">OrthoRad</div>
+              <b>Portal de Clínicas Asociadas</b>
+              <small>Consulta los resultados de tus pacientes referidos</small>
+            </div>
+            <form onsubmit="return false">
+              <label>Correo electrónico<div class="in">clinica@ejemplo.com<i class="pin" style="--px:100%">1</i></div></label>
+              <label>Contraseña<div class="in">••••••••<i class="pin" style="--px:100%">2</i></div></label>
+              <div class="go">Acceder al Portal<i class="pin" style="--px:100%">3</i></div>
+              <div class="lnk">¿Olvidaste tu contraseña?<i class="pin" style="--px:calc(100% + 16px)">4</i></div>
+              <div class="help">¿Sin acceso? Contacta a OrthoRad para solicitar tu cuenta de clínica asociada.</div>
+            </form>
+          </div>
+        </figure>
+        <div>
+          <ol class="steps">
+            <li>Abre <strong>www.orthorad-smj.com/portal-socios</strong> en tu navegador.</li>
+            <li>Escribe tu <strong>correo</strong> y tu <strong>contraseña</strong>.</li>
+            <li>Pulsa <strong>Acceder al Portal</strong>. Llegarás a la lista de tus pacientes referidos.</li>
+          </ol>
+          <ol class="legend">
+            <li><strong>Correo electrónico.</strong> El correo con el que OrthoRad te dio acceso.</li>
+            <li><strong>Contraseña.</strong> La tuya, o la temporal que te entregaron.</li>
+            <li><strong>Acceder al Portal.</strong> Entra al portal.</li>
+            <li><strong>¿Olvidaste tu contraseña?</strong> Te envía un enlace para crear una nueva.</li>
+          </ol>
+        </div>
+      </div>
+
+      <h3 id="password">Si olvidaste tu contraseña</h3>
+      <ol class="steps">
+        <li>En la pantalla de acceso pulsa <strong>¿Olvidaste tu contraseña?</strong> y escribe tu correo.</li>
+        <li>Revisa tu bandeja de entrada. Recibirás un mensaje de <strong>OrthoRad</strong> con el botón <strong>Crear nueva contraseña</strong>.</li>
+        <li>Pulsa el botón, escribe tu nueva contraseña dos veces (mínimo 8 caracteres) y guarda.</li>
+        <li>Vuelve a <strong>www.orthorad-smj.com/portal-socios</strong> y entra con la contraseña nueva.</li>
+      </ol>
+      <div class="note warn">
+        <b class="t">El enlace funciona una sola vez</b>
+        <p>Vence en 1 hora. Si ya lo usaste o venció, pide uno nuevo desde la misma pantalla. Si el mensaje no llega, revisa la carpeta de spam o pide al personal de OrthoRad que restablezca tu contraseña.</p>
+      </div>
+
+      <h3>Cerrar sesión</h3>
+      <p>Usa <strong>Cerrar sesión</strong>, al final del menú lateral. Hazlo siempre que trabajes en una computadora compartida: los resultados contienen datos médicos de tus pacientes.</p>
+    </section>
+
+    <!-- ===== PORTAL ===== -->
+    <section class="chapter" id="portal">
+      <div class="eyebrow">Capítulo 2</div>
+      <h2>El portal</h2>
+      <p class="purpose">El menú café de la izquierda te lleva a cada sección. Siempre está visible, sin importar dónde estés.</p>
+
+      <figure class="screen" aria-label="Ilustración del portal con el menú lateral">
+        <div class="bar"><i></i><i></i><i></i><span>www.orthorad-smj.com/socios</span></div>
+        <div class="app">
+          <div class="sb">
+            <div class="logo"><b>OrthoRad</b><span class="bell">
+              <svg width="15" height="15" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M14.5 12.5V8a5.5 5.5 0 00-11 0v4.5L2 14.5h14l-1.5-2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M7 16.5a2 2 0 004 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              <span class="n">2</span><i class="pin" style="--px:calc(100% + 16px)">1</i></span></div>
+            <div class="clinic" style="position:relative"><small>Clínica asociada</small><b>Clínica Dental Ejemplo</b><i class="pin" style="--px:calc(100% - 4px)">2</i></div>
+            <div class="nav on">Pacientes<i class="pin" style="--px:calc(100% - 4px)">3</i></div>
+            <div class="nav">Resultados<i class="pin" style="--px:calc(100% - 4px)">4</i></div>
+            <div class="spacer"></div>
+            <div class="hr"></div>
+            <div class="ro">Acceso de solo lectura a los resultados de tus pacientes referidos.</div>
+            <div class="nav">Guía de uso<i class="pin" style="--px:calc(100% - 4px)">5</i></div>
+            <div class="nav">Cerrar sesión<i class="pin" style="--px:calc(100% - 4px)">6</i></div>
+          </div>
+          <div class="main">
+            <div class="hd"><b>Mis Pacientes Referidos</b></div>
+            <div class="body">
+              <div class="search">Buscar por nombre o correo...</div>
+              <div class="cards">
+                <div class="pc"><div class="t">María López</div><div class="b"><span>maria@ejemplo.com</span><span>+502 5555 0101</span></div></div>
+                <div class="pc"><div class="t">Carlos Ramírez</div><div class="b"><span>—</span><span>+502 5555 0102</span></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </figure>
+      <ol class="legend">
+        <li><strong>Campana.</strong> Avisos de resultados nuevos. El número rojo indica cuántos no has abierto. Mira el capítulo Avisos.</li>
+        <li><strong>Clínica asociada.</strong> El nombre de tu clínica. Solo ves a los pacientes que ella refirió.</li>
+        <li><strong>Pacientes.</strong> Tus pacientes referidos con sus datos de contacto.</li>
+        <li><strong>Resultados.</strong> Los estudios de tus pacientes y sus archivos.</li>
+        <li><strong>Guía de uso.</strong> Abre esta guía en una pestaña nueva, así no pierdes lo que estás haciendo en el portal.</li>
+        <li><strong>Cerrar sesión.</strong> Sale del portal.</li>
+      </ol>
+      <div class="note">
+        <b class="t">El portal es de solo consulta</b>
+        <p>Puedes ver y descargar, pero no cambiar datos ni subir archivos. Si un dato de un paciente está mal, o falta un estudio, avisa al personal de OrthoRad.</p>
+      </div>
+    </section>
+
+    <!-- ===== PACIENTES ===== -->
+    <section class="chapter" id="pacientes">
+      <div class="eyebrow">Capítulo 3</div>
+      <h2>Pacientes</h2>
+      <p class="purpose">Cada paciente que tu clínica refirió a OrthoRad aparece aquí como una tarjeta.</p>
+
+      <figure class="screen" aria-label="Ilustración de la lista de pacientes referidos">
+        <div class="bar"><i></i><i></i><i></i><span>www.orthorad-smj.com/socios</span></div>
+        <div class="app solo">
+          <div class="main">
+            <div class="hd"><b>Mis Pacientes Referidos</b></div>
+            <div class="body">
+              <div class="search">Buscar por nombre o correo...<i class="pin" style="--px:calc(100% + 16px)">1</i></div>
+              <div class="cards">
+                <div class="pc" style="position:relative">
+                  <div class="t">María López</div>
+                  <div class="b">
+                    <span>maria@ejemplo.com</span>
+                    <span>+502 5555 0101</span>
+                    <div class="row"><span class="cnt">3 estudios<i class="pin" style="--px:-12px">2</i></span><span class="last">Último: 18 nov 2026</span></div>
+                    <div class="btn">Ver Resultados<i class="pin" style="--px:calc(100% - 4px)">3</i></div>
+                  </div>
+                </div>
+                <div class="pc">
+                  <div class="t">Carlos Ramírez</div>
+                  <div class="b">
+                    <span>—</span>
+                    <span>+502 5555 0102</span>
+                    <div class="row"><span class="cnt">1 estudio</span><span class="last">Último: 02 oct 2026</span></div>
+                    <div class="btn">Ver Resultados</div>
+                  </div>
+                </div>
+                <div class="pc">
+                  <div class="t">Ana Pérez</div>
+                  <div class="b">
+                    <span>ana@ejemplo.com</span>
+                    <span>—</span>
+                    <div class="row"><span class="cnt">2 estudios</span><span class="last">Último: 25 ago 2026</span></div>
+                    <div class="btn">Ver Resultados</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </figure>
+      <ol class="legend">
+        <li><strong>Buscador.</strong> Escribe un nombre o un correo para encontrar a un paciente.</li>
+        <li><strong>Estudios.</strong> Cuántos estudios tiene el paciente con OrthoRad, y la fecha del último.</li>
+        <li><strong>Ver Resultados.</strong> Abre la sección Resultados mostrando solo los estudios de ese paciente.</li>
+      </ol>
+      <div class="note">
+        <b class="t">Un guion (—) significa que falta el dato</b>
+        <p>Algunos pacientes no tienen correo o teléfono registrado. Si necesitas que se agregue, pídelo al personal de OrthoRad.</p>
+      </div>
+    </section>
+
+    <!-- ===== RESULTADOS ===== -->
+    <section class="chapter" id="resultados">
+      <div class="eyebrow">Capítulo 4</div>
+      <h2>Resultados</h2>
+      <p class="purpose">Todos los estudios de tus pacientes referidos: cuáles ya tienen resultados, cuáles siguen en proceso, y sus archivos para ver o descargar.</p>
+
+      <figure class="screen" aria-label="Ilustración de la sección Resultados">
+        <div class="bar"><i></i><i></i><i></i><span>www.orthorad-smj.com/socios/resultados</span></div>
+        <div class="app solo">
+          <div class="main">
+            <div class="hd"><b>Resultados</b><span class="ghost">✕ Quitar filtro: maria@ejemplo.com<i class="pin" style="--px:-14px">3</i></span></div>
+            <div class="body">
+              <div class="search">Buscar por nombre del paciente...<i class="pin" style="--px:calc(100% + 16px)">1</i></div>
+              <div class="tabs">
+                <span class="on">Todos</span><span>Resultados disponibles</span><span>En proceso<i class="pin" style="--px:calc(100% + 16px)">2</i></span>
+              </div>
+              <div class="tbl">
+                <div class="cap">3 estudios</div>
+                <div class="scroll">
+                  <table>
+                    <thead><tr><th>Paciente</th><th>Servicio</th><th>Fecha</th><th>Estado</th><th>Archivos</th></tr></thead>
+                    <tbody>
+                      <tr>
+                        <td class="pn">María López</td><td>Tomografía CBCT</td><td>18 nov 2026, 10:30</td>
+                        <td><span class="st ok">Disponible<i class="pin" style="--px:calc(100% + 14px)">4</i></span></td>
+                        <td>
+                          <div class="file"><span class="nm">panoramica.jpg</span><span class="ver">Ver<i class="pin" style="--px:50%;--py:-12px">5</i></span><span class="dl" aria-label="Descargar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M4 19h16" stroke-linecap="round" stroke-linejoin="round"/></svg><i class="pin" style="--px:50%;--py:-12px">6</i></span></div>
+                          <div class="file"><span class="nm">tomografia_cbct.dcm</span><span class="dl" aria-label="Descargar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M4 19h16" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td class="pn">María López</td><td>Radiografía panorámica</td><td>02 sep 2026, 09:00</td>
+                        <td><span class="st ok">Disponible</span></td>
+                        <td><div class="file"><span class="nm">informe.pdf</span><span class="ver">Ver</span><span class="dl" aria-label="Descargar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M4 19h16" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div></td>
+                      </tr>
+                      <tr>
+                        <td class="pn">María López</td><td>Radiografía periapical</td><td>25 nov 2026, 16:00</td>
+                        <td><span class="st wait">En proceso</span></td>
+                        <td><span class="dash">—</span></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </figure>
+      <p class="cap-note">En una pantalla pequeña, desliza la tabla hacia los lados para ver todas las columnas.</p>
+      <ol class="legend">
+        <li><strong>Buscador</strong><span class="tag-new">Nuevo</span>. Escribe el nombre del paciente. Encuentra coincidencias aunque escribas sin acentos, en otro orden o con un pequeño error.</li>
+        <li><strong>Todos, Resultados disponibles, En proceso.</strong> Filtra la lista por estado. Se combina con el buscador.</li>
+        <li><strong>Quitar filtro.</strong> Aparece cuando llegas desde <strong>Ver Resultados</strong> de un paciente. Púlsalo para volver a ver los estudios de todos tus pacientes.</li>
+        <li><strong>Estado.</strong> «Disponible» quiere decir que ya hay archivos. «En proceso» quiere decir que OrthoRad aún no los sube.</li>
+        <li><strong>Ver</strong><span class="tag-new">Nuevo</span>. Abre el archivo en una pestaña nueva. Solo aparece en imágenes y PDF, que el navegador puede mostrar.</li>
+        <li><strong>Flecha de descarga</strong><span class="tag-new">Nuevo</span>. Guarda el archivo en tu computadora con su nombre original. Está en todos los archivos.</li>
+      </ol>
+
+      <h3 id="buscar">Buscar los resultados de un paciente</h3>
+      <ol class="steps">
+        <li>Entra a <strong>Resultados</strong> desde el menú lateral.</li>
+        <li>Escribe el nombre del paciente en el buscador. Basta con una parte: «lopez mar» encuentra a «María López».</li>
+        <li>La lista se actualiza mientras escribes. Los resultados más parecidos aparecen primero.</li>
+        <li>Si quieres, usa <strong>Resultados disponibles</strong> para ver solo los estudios que ya tienen archivos.</li>
+      </ol>
+      <div class="note">
+        <b class="t">El buscador perdona errores pequeños</b>
+        <p>«jose» encuentra a «José», «rodrigez» encuentra a «Rodríguez» y «perez ana» encuentra a «Ana Pérez». Si no aparece nadie, verás el mensaje <strong>Sin resultados</strong> y el botón <strong>Limpiar filtros</strong> para empezar de nuevo.</p>
+      </div>
+      <div class="note">
+        <b class="t">Otra forma de llegar</b>
+        <p>Desde <strong>Pacientes</strong>, el botón <strong>Ver Resultados</strong> de una tarjeta abre directamente los estudios de esa persona.</p>
+      </div>
+
+      <h3 id="descargar">Ver o descargar los archivos</h3>
+      <div class="task">
+        <div>
+          <ol class="steps">
+            <li>Busca el estudio en la tabla. Sus archivos están en la columna <strong>Archivos</strong>.</li>
+            <li>Para mirarlo sin guardarlo, pulsa <strong>Ver</strong>. Se abre en una pestaña nueva.</li>
+            <li>Para guardarlo, pulsa la <strong>flecha de descarga</strong> que está junto al nombre. El archivo queda en tu carpeta de descargas.</li>
+          </ol>
+        </div>
+        <div>
+          <p><strong>Qué botones verás según el tipo de archivo</strong></p>
+          <ul>
+            <li><strong>Imágenes</strong> (JPG, PNG y similares) y <strong>PDF</strong>: <strong>Ver</strong> y la flecha de descarga.</li>
+            <li><strong>Tomografías CBCT / DICOM</strong> y otros formatos que el navegador no puede mostrar: solo la flecha de descarga. Ábrelos después con tu programa de visualización habitual.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="note warn">
+        <b class="t">Si un archivo no abre o no descarga</b>
+        <p>Por seguridad, los enlaces a los archivos caducan después de unas horas. Si dejaste el portal abierto mucho tiempo, recarga la página y vuelve a intentarlo.</p>
+      </div>
+
+      <h3>Los estados de un estudio</h3>
+      <div class="states">
+        <span class="chip wait">En proceso</span>
+        <span class="chip ok">Disponible</span>
+      </div>
+      <p style="margin-top:12px">Un estudio pasa de «En proceso» a «Disponible» en cuanto OrthoRad sube su primer archivo. Ese mismo momento genera un aviso para tu clínica.</p>
+    </section>
+
+    <!-- ===== AVISOS ===== -->
+    <section class="chapter" id="avisos">
+      <div class="eyebrow">Capítulo 5</div>
+      <h2>Avisos de resultados</h2>
+      <p class="purpose">Cuando OrthoRad sube los resultados de uno de tus pacientes, te enteras de dos formas: en la campana del portal y por correo.</p>
+
+      <div class="task">
+        <figure class="screen" style="margin-top:0;padding:18px;background:#5C3317" aria-label="Ilustración de la lista de avisos de la campana">
+          <div class="pop">
+            <div class="ph">Notificaciones</div>
+            <div class="it unread"><span class="dot"></span><div>Resultados de María López — Tomografía CBCT disponibles<small>18 nov, 11:02</small></div><i class="pin" style="--px:100%">1</i></div>
+            <div class="it"><div style="padding-left:15px">Resultados de Ana Pérez — Radiografía panorámica disponibles<small>25 ago, 09:40</small></div><i class="pin" style="--px:100%">2</i></div>
+          </div>
+        </figure>
+        <div>
+          <ol class="legend" style="margin-top:0">
+            <li><strong>Aviso sin abrir.</strong> Tiene un punto rojo y cuenta en el número de la campana.</li>
+            <li><strong>Aviso ya abierto.</strong> Sin punto. Sigue en la lista para que lo consultes cuando quieras.</li>
+          </ol>
+          <ol class="steps">
+            <li>Pulsa la <strong>campana</strong>, arriba en el menú lateral.</li>
+            <li>Pulsa un aviso. Se abre <strong>Resultados</strong> con los estudios de ese paciente y el aviso queda como leído.</li>
+          </ol>
+        </div>
+      </div>
+
+      <h3>El correo de «Resultados disponibles»</h3>
+      <p>Al mismo tiempo, OrthoRad envía un correo con el asunto <strong>Resultados disponibles — <em>nombre del paciente</em></strong> al correo de contacto de tu clínica. Para ver los archivos, entra al portal como se explica en el capítulo Empezar.</p>
+      <div class="note">
+        <b class="t">¿El correo llega a otra persona?</b>
+        <p>El aviso va al <strong>correo de contacto</strong> que OrthoRad tiene registrado para tu clínica, que puede ser distinto de tu correo de acceso. Si quieres cambiarlo, pídelo al personal de OrthoRad.</p>
+      </div>
+    </section>
+
+    <!-- ===== FAQ ===== -->
+    <section class="chapter" id="faq">
+      <div class="eyebrow">Capítulo 6</div>
+      <h2>Preguntas frecuentes</h2>
+      <div class="faq">
+        <details>
+          <summary>No encuentro a un paciente que referí</summary>
+          <div>
+            <p>Solo aparecen los pacientes que OrthoRad registró como referidos por tu clínica. Prueba a buscar solo una parte del nombre o del apellido. Si aun así no aparece, pide al personal de OrthoRad que revise la <strong>clínica referente</strong> de su cita.</p>
+          </div>
+        </details>
+        <details>
+          <summary>Un estudio sigue «En proceso»</summary>
+          <div>
+            <p>OrthoRad todavía no sube sus archivos. Recibirás un aviso en la campana y un correo en cuanto estén listos.</p>
+          </div>
+        </details>
+        <details>
+          <summary>No puedo abrir un archivo CBCT o DICOM</summary>
+          <div>
+            <p>El navegador no puede mostrar estos archivos, por eso no tienen el botón <strong>Ver</strong>. Descárgalos con la flecha y ábrelos con tu programa de visualización de tomografías.</p>
+          </div>
+        </details>
+        <details>
+          <summary>Pulso un archivo y no pasa nada, o sale un error</summary>
+          <div>
+            <p>Recarga la página: los enlaces a los archivos caducan después de unas horas por seguridad. Si el problema sigue, avisa al personal de OrthoRad.</p>
+          </div>
+        </details>
+        <details>
+          <summary>¿Puedo ver resultados de un paciente que otra clínica refirió?</summary>
+          <div>
+            <p>No. Cada clínica ve solo los estudios que ella misma refirió, aunque el paciente también se haya atendido por medio de otra clínica.</p>
+          </div>
+        </details>
+        <details>
+          <summary>Necesito dar acceso a otra persona de mi clínica</summary>
+          <div>
+            <p>Pídelo al personal de OrthoRad con el correo de esa persona. Cada persona debe tener su propio acceso; no compartas tu contraseña.</p>
+          </div>
+        </details>
+        <details>
+          <summary>Olvidé mi contraseña</summary>
+          <div>
+            <p>En la pantalla de acceso pulsa <strong>¿Olvidaste tu contraseña?</strong> y sigue los pasos del capítulo Empezar. Si el correo no llega, el personal de OrthoRad puede generarte una contraseña temporal.</p>
+          </div>
+        </details>
+      </div>
+
+      <div class="note new" style="margin-top:28px">
+        <b class="t">Novedades de esta versión</b>
+        <ul>
+          <li><strong>Buscador en Resultados</strong>: encuentra los estudios por nombre del paciente, incluso con errores pequeños o sin acentos.</li>
+          <li><strong>Ver y Descargar</strong>: cada archivo muestra su nombre, el enlace <strong>Ver</strong> (imágenes y PDF) y una flecha para descargarlo directamente.</li>
+          <li><strong>Guía de uso</strong>: esta guía, disponible desde el menú lateral del portal.</li>
+        </ul>
+      </div>
+      <p class="foot">Guía actualizada en noviembre de 2026. Las pantallas son ilustraciones de la versión actual del portal; los nombres de pacientes son ejemplos.</p>
+    </section>
+
+  </main>
+</div>
+
+<script>
+(function () {
+  var links = Array.prototype.slice.call(document.querySelectorAll(".side a"));
+  var map = {};
+  links.forEach(function (a) { map[a.getAttribute("href").slice(1)] = a; });
+  var sections = Object.keys(map).map(function (id) { return document.getElementById(id); }).filter(Boolean);
+  if (!("IntersectionObserver" in window)) return;
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (!e.isIntersecting) return;
+      links.forEach(function (a) { a.classList.remove("on"); });
+      var a = map[e.target.id];
+      if (a) {
+        a.classList.add("on");
+        if (window.matchMedia("(max-width: 900px)").matches && a.scrollIntoView) {
+          try { a.scrollIntoView({ inline: "center", block: "nearest" }); } catch (err) {}
+        }
+      }
+    });
+  }, { rootMargin: "-20% 0px -70% 0px" });
+  sections.forEach(function (s) { io.observe(s); });
+})();
+</script>
+</body>
+</html>

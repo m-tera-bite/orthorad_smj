@@ -81,6 +81,27 @@ export default function PartnerShell() {
           <p className="text-alternative/70 text-[11px] px-2 leading-snug">
             Acceso de solo lectura a los resultados de tus pacientes referidos.
           </p>
+          {/* Static partner guide served by Django (backend/static/guia-socios). Opens in
+              a new tab so partners don't lose their place in the portal. */}
+          <a
+            href="/guia-socios"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 text-alternative hover:bg-white/10 hover:text-white rounded-[10px] font-semibold text-[13px] transition-colors"
+            style={{ padding: "10px 14px" }}
+          >
+            <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
+              <circle cx="8.5" cy="8.5" r="7" stroke="currentColor" strokeWidth="1.5" />
+              <path
+                d="M6.5 6.4a2 2 0 013.9.6c0 1.3-1.9 1.6-1.9 3M8.5 12.2v.1"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            Guía de uso
+          </a>
           <button
             onClick={() => { logout(); navigate("/portal-socios"); }}
             className="flex items-center gap-3 text-alternative hover:bg-white/10 hover:text-white rounded-[10px] font-semibold text-[13px] transition-colors w-full text-left"
