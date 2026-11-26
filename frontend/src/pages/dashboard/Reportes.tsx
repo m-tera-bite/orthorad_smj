@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import api from "../../api/client";
 import UploadModal, { AppointmentOption, ReportFile } from "../../components/dashboard/UploadModal";
 import UploadResultsButton from "../../components/dashboard/UploadResultsButton";
+import { fuzzyFilter } from "../../lib/fuzzySearch";
 
 interface ReportData {
   id: number;
@@ -19,8 +20,14 @@ interface AppointmentRow {
   service_name: string;
   scheduled_at: string;
   status: string;
+  referring_partner: number | null;
+  referring_partner_name: string | null;
   report: ReportData | null;
 }
+
+// Clinic filter: every report (with or without clinic), only reports with
+// no referring clinic, or one specific clinic by id.
+type ClinicFilter = "all" | "none" | `${number}`;
 
 type Filter = "todos" | "pendientes" | "subidos";
 
@@ -47,12 +54,32 @@ export default function Reportes() {
   const [showUpload, setShowUpload] = useState(false);
   const [uploadTarget, setUploadTarget] = useState<number | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
+  const [search, setSearch] = useState("");
+  const [clinicFilter, setClinicFilter] = useState<ClinicFilter>("all");
+  const [partners, setPartners] = useState<{ id: number; name: string }[]>([]);
 
   function load() {
     api.get("/appointments/").then(({ data }) => setAppointments(data)).finally(() => setLoading(false));
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    api.get("/partners/").then(({ data }) => setPartners(data)).catch(() => setPartners([]));
+  }, []);
+
+  // Clinics for the filter: the partner list, plus any clinic referenced by
+  // a loaded report but missing from it (e.g. since deactivated).
+  const clinicOptions = (() => {
+    const byId = new Map<number, string>(partners.map((p) => [p.id, p.name]));
+    for (const a of appointments) {
+      if (a.referring_partner != null && !byId.has(a.referring_partner)) {
+        byId.set(a.referring_partner, a.referring_partner_name ?? `Clínica #${a.referring_partner}`);
+      }
+    }
+    return [...byId.entries()]
+      .map(([id, name]) => ({ id, name }))
+      .sort((x, y) => x.name.localeCompare(y.name, "es"));
+  })();
 
   // Reopening the upload modal from the minimized bar routes here with
   // ?manage=<appointmentId> since this page can target any appointment,
@@ -71,12 +98,16 @@ export default function Reportes() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
-  const filtered = appointments.filter((a) => {
+  const byStatusAndClinic = appointments.filter((a) => {
     const hasFiles = (a.report?.files.length ?? 0) > 0;
-    if (filter === "subidos") return hasFiles;
-    if (filter === "pendientes") return !hasFiles;
+    if (filter === "subidos" && !hasFiles) return false;
+    if (filter === "pendientes" && hasFiles) return false;
+    if (clinicFilter === "none") return a.referring_partner == null;
+    if (clinicFilter !== "all") return a.referring_partner === Number(clinicFilter);
     return true;
   });
+  const filtered = fuzzyFilter(byStatusAndClinic, search, (a) => a.patient_name);
+  const isFiltering = !!search.trim() || clinicFilter !== "all" || filter !== "todos";
 
   function handleUploaded(appointmentId: number, uploadedAt: string, newFiles: ReportFile[]) {
     setAppointments((prev) =>
@@ -159,6 +190,34 @@ export default function Reportes() {
         className="flex-1 overflow-y-auto flex flex-col gap-5"
         style={{ backgroundColor: "#fffcf7", padding: "24px 40px 40px" }}
       >
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="relative w-full max-w-sm">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-alternative" width="15" height="15" viewBox="0 0 15 15" fill="none">
+              <circle cx="6.5" cy="6.5" r="5" stroke="currentColor" strokeWidth="1.4" />
+              <path d="M10.5 10.5l3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+            </svg>
+            <input
+              type="search"
+              placeholder="Buscar por nombre del paciente..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 border border-divider rounded-[10px] text-text font-quicksand text-sm focus:outline-none focus:border-secondary bg-white"
+            />
+          </div>
+          <select
+            value={clinicFilter}
+            onChange={(e) => setClinicFilter(e.target.value as ClinicFilter)}
+            aria-label="Filtrar por clínica"
+            className="border border-divider rounded-[10px] px-4 py-2.5 text-text font-quicksand text-sm focus:outline-none focus:border-secondary bg-white max-w-[260px]"
+          >
+            <option value="all">Todas las clínicas (incluye sin clínica)</option>
+            <option value="none">Sin clínica</option>
+            {clinicOptions.map((c) => (
+              <option key={c.id} value={String(c.id)}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+
         <div className="flex gap-2">
           {FILTERS.map(({ key, label }) => (
             <button
@@ -183,7 +242,19 @@ export default function Reportes() {
                 <path d="M8 7h8M8 11h8M8 15h5" strokeLinecap="round" />
               </svg>
               <p className="text-primary font-montserrat font-bold text-[16px] mb-2">Sin reportes</p>
-              <p className="text-text font-quicksand text-sm">No hay citas que coincidan con el filtro seleccionado.</p>
+              <p className="text-text font-quicksand text-sm">
+                {search.trim()
+                  ? `No se encontraron reportes para “${search.trim()}”.`
+                  : "No hay citas que coincidan con el filtro seleccionado."}
+              </p>
+              {isFiltering && (
+                <button
+                  onClick={() => { setSearch(""); setClinicFilter("all"); setFilter("todos"); }}
+                  className="mt-4 text-sm text-secondary underline font-quicksand"
+                >
+                  Limpiar filtros
+                </button>
+              )}
             </div>
           </div>
         ) : (

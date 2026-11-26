@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import api from "../../api/client";
+import { fuzzyFilter } from "../../lib/fuzzySearch";
 
 interface ReportFile {
   id: number;
@@ -126,6 +127,7 @@ export default function Resultados() {
   const [appointments, setAppointments] = useState<AppointmentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>("todos");
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     setLoading(true);
@@ -135,12 +137,14 @@ export default function Resultados() {
     api.get(url).then(({ data }) => setAppointments(data)).finally(() => setLoading(false));
   }, [emailFilter]);
 
-  const filtered = appointments.filter((a) => {
+  const byStatus = appointments.filter((a) => {
     const hasFiles = (a.report?.files.length ?? 0) > 0;
     if (filter === "disponibles") return hasFiles;
     if (filter === "pendientes") return !hasFiles;
     return true;
   });
+  const filtered = fuzzyFilter(byStatus, search, (a) => a.patient_name);
+  const isFiltering = !!search.trim() || filter !== "todos";
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -166,6 +170,20 @@ export default function Resultados() {
         className="flex-1 overflow-y-auto flex flex-col gap-5"
         style={{ backgroundColor: "#fffcf7", padding: "24px 40px 40px" }}
       >
+        <div className="relative w-full max-w-sm">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-alternative" width="15" height="15" viewBox="0 0 15 15" fill="none">
+            <circle cx="6.5" cy="6.5" r="5" stroke="currentColor" strokeWidth="1.4" />
+            <path d="M10.5 10.5l3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+          </svg>
+          <input
+            type="search"
+            placeholder="Buscar por nombre del paciente..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-9 pr-4 py-2.5 border border-divider rounded-[10px] text-text font-quicksand text-sm focus:outline-none focus:border-secondary bg-white"
+          />
+        </div>
+
         <div className="flex gap-2">
           {FILTERS.map(({ key, label }) => (
             <button
@@ -191,8 +209,18 @@ export default function Resultados() {
               </svg>
               <p className="text-primary font-montserrat font-bold text-[16px] mb-2">Sin resultados</p>
               <p className="text-text font-quicksand text-sm">
-                No hay estudios que coincidan con el filtro seleccionado.
+                {search.trim()
+                  ? `No se encontraron estudios para “${search.trim()}”.`
+                  : "No hay estudios que coincidan con el filtro seleccionado."}
               </p>
+              {isFiltering && (
+                <button
+                  onClick={() => { setSearch(""); setFilter("todos"); }}
+                  className="mt-4 text-sm text-secondary underline font-quicksand"
+                >
+                  Limpiar filtros
+                </button>
+              )}
             </div>
           </div>
         ) : (
